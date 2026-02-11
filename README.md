@@ -91,7 +91,7 @@ If these files ever conflict, update them together in one change.
 ## Running Locally
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/speakfluid.git
+git clone https://github.com/b0uu/speakfluid.git
 cd speakfluid
 npm install
 npm run dev
