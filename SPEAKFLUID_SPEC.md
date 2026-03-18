@@ -14,6 +14,8 @@ SpeakFluid is a voice-first conversational Spanish tutor web application. Users 
 
 **Core philosophy:** The tutor drives the conversation, not the user. Every exchange should feel like talking to a patient, encouraging friend who happens to be a native Spanish speaker — not like interacting with a chatbot.
 
+**Current product direction:** The live MVP uses an immersive session flow rather than a plain chat transcript. Users enter through a scene-intro card, progress through exchange-based dialogue cards, and can tap Spanish words for quick contextual definitions.
+
 ### What "Done" Looks Like for the MVP
 
 A user can:
@@ -21,87 +23,44 @@ A user can:
 2. Enter their OpenAI API key and ElevenLabs API key (both persisted in localStorage)
 3. See a menu of 8 conversation scenarios with brief English descriptions
 4. Select a scenario
-5. Hear the tutor introduce the scenario and begin speaking in Spanish
-6. Hold a button to speak, release to send
-7. See their transcribed speech and the tutor's response (text backup)
-8. Get corrected naturally when they make errors, with English explanation
-9. Complete the scenario in ~8-12 exchanges
-10. See a brief summary of what they practiced and errors they made
-11. Click "Next" to enter the next scenario, or return to the menu
+5. See a short scene-intro card that explains the roleplay
+6. Hear the tutor begin speaking in Spanish
+7. Hold a button to speak, release to send, or use a text fallback
+8. Follow the conversation through immersive exchange cards with optional translation
+9. Tap Spanish words for quick contextual definitions
+10. Get corrected naturally when they make errors, with English explanation
+11. Complete the scenario in ~8-12 exchanges
+12. See a brief summary of what they practiced and errors they made
+13. Click "Next" to enter the next scenario, or return to the menu
 
 ---
 
 ## 2. User Flow (Step by Step)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      LANDING / API SETUP                     │
-│                                                              │
-│  User enters two API keys:                                   │
-│  1. OpenAI API key (for speech recognition + tutor brain)    │
-│  2. ElevenLabs API key (for tutor voice)                     │
-│  Both validated → stored in localStorage                     │
-│  Brief explanation: "SpeakFluid uses your API keys for speech     │
-│  recognition, conversation, and voice. Your keys stay in     │
-│  your browser."                                              │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      SCENARIO SELECT                         │
-│                                                              │
-│  Grid of 8 scenario cards, each showing:                     │
-│  - Icon/emoji                                                │
-│  - Title (English)                                           │
-│  - 1-line description (English)                              │
-│  - Difficulty badge (Beginner / Intermediate / Advanced)     │
-│                                                              │
-│  User clicks a card to begin.                                │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     CONVERSATION SESSION                     │
-│                                                              │
-│  Layout:                                                     │
-│  ┌─────────────────────────────────────────────────────┐     │
-│  │  Scenario context bar (title + brief English desc)  │     │
-│  ├─────────────────────────────────────────────────────┤     │
-│  │                                                     │     │
-│  │  Chat transcript area                               │     │
-│  │  (scrollable, shows both text + who is speaking)    │     │
-│  │                                                     │     │
-│  │  Tutor messages: Spanish text + English subtext     │     │
-│  │  User messages: transcribed speech                  │     │
-│  │  Corrections: highlighted inline                    │     │
-│  │                                                     │     │
-│  ├─────────────────────────────────────────────────────┤     │
-│  │  🎤 HOLD TO SPEAK button (large, prominent)        │     │
-│  │  Status: "Listening..." / "Processing..." / idle    │     │
-│  └─────────────────────────────────────────────────────┘     │
-│                                                              │
-│  Flow:                                                       │
-│  1. Tutor speaks first (audio plays + text appears)          │
-│  2. User holds mic button, speaks, releases                  │
-│  3. Audio → OpenAI transcribe STT → text appears in transcript│
-│  4. Text → LLM tutor → response text appears                │
-│  5. Response → TTS → audio plays                             │
-│  6. Repeat until scenario complete (~8-12 exchanges)         │
-│  7. Tutor signals completion naturally                       │
-│  8. Transition to summary screen                             │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     SESSION SUMMARY                          │
-│                                                              │
-│  - Scenario completed badge                                  │
-│  - "What you practiced" (2-3 bullet points)                  │
-│  - Corrections made (if any), shown as before/after          │
-│  - [Next Scenario →] button (auto-selects next)              │
-│  - [← Back to Menu] button                                   │
-└─────────────────────────────────────────────────────────────┘
-```
+1. Landing / API setup
+- User enters OpenAI and ElevenLabs keys.
+- Keys are validated and stored in `localStorage`.
+- Returning users can continue or replace stored keys.
+
+2. Scenario select
+- User sees a grid of eight scenarios with difficulty and exchange count.
+- Selecting a card opens the session route for that scenario.
+
+3. Scene intro
+- User sees a focused intro card before the conversation begins.
+- Card shows the scene, the user's role, the tutor character, and practice focus.
+- User explicitly starts the roleplay with a "Begin Conversation" action.
+
+4. Conversation session
+- Layout uses an immersive exchange view rather than a plain transcript.
+- Each exchange centers the tutor line, optional narrator text, user response, and correction state.
+- User can speak with push-to-talk or switch to typing.
+- Tutor audio plays after each response except visual-only narrator text.
+- User can tap Spanish words to see brief contextual definitions.
+
+5. Session completion
+- Tutor ends naturally and emits `[SCENARIO_COMPLETE]`.
+- App shows a summary overlay with recap text and next-step navigation.
 
 ---
 
@@ -498,44 +457,31 @@ Session summary: You practiced [topic]. You used [grammar point] well. One thing
 
 ### Key UI Components
 
-**Scenario Card (on select screen):**
-- Rounded rectangle with subtle shadow
-- Left-aligned icon (emoji, large)
-- Title in display font
-- Description in body font, muted color
-- Small difficulty badge (colored pill)
-- Hover: slight lift + border glow in primary color
+**Scenario Card**
+- Rounded scenario tile with icon, difficulty, and expected exchange count
+- Editorial heading style, not generic product-card styling
 
-**Conversation Bubble (tutor):**
-- Left-aligned, surface background, rounded
-- Spanish text in body font, normal weight, dark text
-- English translation below in smaller text, muted gray-blue color
-- Subtle left border in secondary green
+**Scene Intro Card**
+- Full-screen intro before conversation starts
+- Shows scene setup, role context, tutor character, and practice focus
+- Single clear CTA to begin
 
-**Conversation Bubble (user):**
-- Right-aligned, primary-light background, white text
-- Rounded, no border
-- Transcribed text only
+**Exchange Card**
+- One card per conversational exchange
+- Supports optional narrator line above the card
+- Displays tutor Spanish line, optional translation, user response, and inline correction state
+- Completion exchanges can also display session-summary content
 
-**Correction Card:**
-- Full-width card with warm orange background (--color-error-bg)
-- Left accent border in primary terracotta
-- Shows: "Almost! [explanation]" + correct form highlighted
-- "Try again" prompt below
+**Word Tooltip**
+- Triggered by tapping Spanish text inside the exchange card
+- Shows a brief contextual English gloss
 
-**Mic Button:**
-- Large circular button, centered at bottom
-- IDLE: Outlined, secondary color, mic icon
-- RECORDING: Filled primary color with pulsing ring animation
-- PROCESSING: Gray with spinning indicator
-- Disabled states clearly visually distinct (grayed out, no hover effect)
-- Touch target: minimum 64x64px
+**Mic Button**
+- Large circular bottom-bar control with stateful recording/speaking visuals
+- Typing remains as a supported fallback, not just a debug input
 
-**Session Summary Card:**
-- Centered card with checkmark icon
-- "What you practiced" section
-- "Corrections" section (if any) with before/after
-- Two buttons: "Next Scenario →" (primary) and "Back to Menu" (text button)
+**Session Summary Overlay**
+- Lightweight completion overlay with recap and next-scenario navigation
 
 ---
 
@@ -558,9 +504,11 @@ speakfluid/
 │   │   ├── ApiKeyForm.tsx              # API key input + validation
 │   │   ├── ScenarioCard.tsx            # Individual scenario card
 │   │   ├── ScenarioGrid.tsx            # Grid of scenario cards
-│   │   ├── ConversationView.tsx        # Scrollable chat transcript
-│   │   ├── MessageBubble.tsx           # Individual message (tutor or user)
-│   │   ├── CorrectionCard.tsx          # Error correction display
+│   │   ├── SceneIntro.tsx              # Pre-conversation roleplay setup
+│   │   ├── ImmersiveDialogueView.tsx   # Exchange-based session renderer
+│   │   ├── ExchangeCard.tsx            # Individual exchange card
+│   │   ├── TappableSpanishText.tsx     # Tap-to-define Spanish text
+│   │   ├── WordTooltip.tsx             # Contextual word definition tooltip
 │   │   ├── MicButton.tsx               # Push-to-talk button with states
 │   │   ├── StatusIndicator.tsx         # "Listening..." / "Thinking..." text
 │   │   ├── SessionSummary.tsx          # End-of-session recap
@@ -576,7 +524,9 @@ speakfluid/
 │   │   ├── stt.ts                      # STT API call (gpt-4o-transcribe)
 │   │   ├── tts.ts                      # TTS API call (ElevenLabs Flash v2.5)
 │   │   ├── tutor.ts                    # LLM call with system prompt + conversation history
-│   │   └── scenarios.ts                # Scenario data (the 8 scenarios)
+│   │   ├── scenarios.ts                # Scenario data (the 8 scenarios)
+│   │   ├── exchanges.ts                # Group flat messages into exchanges
+│   │   └── wordLookup.ts               # Contextual word definitions
 │   ├── types/
 │   │   └── index.ts                    # TypeScript types (Scenario, Message, AudioState, etc.)
 │   └── styles/
@@ -633,22 +583,30 @@ Build in this exact order. Each phase must be fully working before moving to the
 
 **Verify:** Enter valid keys → lands on scenario page. Refresh → still there. Invalid key → specific error shown.
 
-### Phase 3: Conversation Engine — Text Only (1 hour)
+### Phase 3: Conversation Engine & Immersive Session UX (1 hour)
 
-**Goal:** Full text-based conversation works with the LLM. No audio yet.
+**Goal:** Tutor behavior, parsing, and session rendering feel right before voice is layered on.
 
 - Implement `tutor.ts`: constructs the system prompt + injects scenario context + sends conversation history to GPT-4o-mini
 - Implement `useConversation` hook:
   - Holds conversation state: messages array, current scenario, exchange count, audio state
   - `sendMessage(text: string)` → calls LLM → parses response → updates messages
   - Detects `[SCENARIO_COMPLETE]` → triggers summary display
-- Implement `ConversationView` + `MessageBubble` + `CorrectionCard`
-- Parse tutor responses: split Spanish line, English translation, corrections
-- Add a temporary text input at the bottom (will be replaced by mic in Phase 4)
+- Implement the session UI:
+  - `SceneIntro`
+  - `ImmersiveDialogueView`
+  - `ExchangeCard`
+- Parse tutor responses into:
+  - Spanish line
+  - English translation
+  - correction state
+  - completion summary
+  - optional `[NARRATOR]` line
+- Keep typed input available as an intentional fallback
 - Implement `SessionSummary` component
 - Implement "Next Scenario" navigation
 
-**Verify:** Select a scenario → tutor opens with its first line → type a Spanish response → tutor responds with short, guided response → correction flow works → scenario completes → summary shown → can navigate to next.
+**Verify:** Select a scenario → view intro card → begin conversation → tutor responds with short in-character lines → corrections group correctly into exchanges → optional narrator lines render visually → scenario completes → summary shown → can navigate to next.
 
 **This phase is the most important.** The tutor prompt must produce short, guided, in-character responses. If it doesn't, tune the prompt before moving on. Do not proceed to audio until text conversations feel right.
 
@@ -676,9 +634,10 @@ Build in this exact order. Each phase must be fully working before moving to the
   - Handles cleanup (revoke Blob URLs)
 - Implement `MicButton` with full state machine (IDLE → RECORDING → TRANSCRIBING → THINKING → SPEAKING → IDLE)
 - Wire everything together in the session page
-- Remove temporary text input (or keep as hidden fallback)
+- Keep typing as a supported fallback
+- If a tutor response contains `[NARRATOR]`, do not send the narrator line to TTS
 
-**Verify:** Hold mic → speak Spanish → release → see transcription appear → tutor text appears → hear tutor speak → mic becomes available again. No double audio, no stuttering, no stuck states.
+**Verify:** Hold mic → speak Spanish → release → see transcription grouped into the active exchange → tutor text appears → hear tutor dialogue speak without narrator text → mic becomes available again. No double audio, no stuttering, no stuck states.
 
 ### Phase 5: Polish & Edge Cases (30 min)
 
@@ -692,6 +651,7 @@ Build in this exact order. Each phase must be fully working before moving to the
 - Scenario header shows exchange count progress (e.g., "4 of ~10")
 - First-visit onboarding: brief 2-line explanation of push-to-talk on first session
 - Page title updates with current scenario name
+- Word lookup feels fast and non-disruptive in the dialogue view
 
 **Verify:** Test on mobile browser. Test with airplane mode toggled. Test rapid mic presses. Test very long user utterances. Test user saying nothing (empty recording).
 
@@ -762,36 +722,45 @@ interface ParsedTutorResponse {
   correctionExplanation?: string; // English error correction (if correction type)
   retryPrompt?: string;          // "Try again" prompt (if correction type)
   summaryText?: string;          // Session summary (if completion type)
+  narratorText?: string;         // Optional visual-only scene line
 }
 
 function parseTutorResponse(raw: string): ParsedTutorResponse {
+  let narratorText: string | undefined;
+  let remaining = raw;
+
+  const narratorMatch = raw.match(/^\[NARRATOR\]\s*(.+?)$/m);
+  if (narratorMatch) {
+    narratorText = narratorMatch[1].trim();
+    remaining = raw.replace(narratorMatch[0], '').trim();
+  }
+
   // Check for scenario completion
-  if (raw.includes('[SCENARIO_COMPLETE]')) {
-    const [dialogue, rest] = raw.split('[SCENARIO_COMPLETE]');
+  if (remaining.includes('[SCENARIO_COMPLETE]')) {
+    const [dialogue, rest] = remaining.split('[SCENARIO_COMPLETE]');
     return {
       type: 'completion',
       ...parseDialogue(dialogue.trim()),
-      summaryText: rest.trim().replace('Session summary: ', '')
+      summaryText: rest.trim().replace('Session summary: ', ''),
+      narratorText,
     };
   }
 
-  // Check for correction pattern (contains English explanation + "try" or "Try")
-  // Corrections are in English with Spanish words highlighted
-  // The heuristic: if the response starts with English words like "Almost", "Close", "Good try"
+  // Corrections are English-only and never include narrator text.
   const correctionStarters = ['almost', 'close', 'good try', 'not quite', 'small fix'];
-  const lowerRaw = raw.toLowerCase();
+  const lowerRaw = remaining.toLowerCase();
   if (correctionStarters.some(s => lowerRaw.startsWith(s))) {
     return {
       type: 'correction',
-      correctionExplanation: raw.split('\n')[0],
-      retryPrompt: raw.split('\n').slice(1).join('\n').trim() || 'Can you try that again?'
+      correctionExplanation: remaining.split('\n')[0],
+      retryPrompt: remaining.split('\n').slice(1).join('\n').trim() || 'Can you try that again?'
     };
   }
 
-  // Normal response: Spanish line + English translation in parentheses
   return {
     type: 'normal',
-    ...parseDialogue(raw)
+    ...parseDialogue(remaining),
+    narratorText,
   };
 }
 
@@ -825,7 +794,14 @@ This spec remains the product and implementation reference (especially Sections 
 
 ---
 
-## 11. Future Enhancements (Post-MVP)
+## 11. Current Known Issues
+
+- TTS accent quality can drift during correction turns because English framing can dominate the spoken delivery.
+- Exchange-card rendering becomes less exact when tutor turns shift from direct dialogue into more descriptive wrap-up language near completion.
+
+---
+
+## 12. Future Enhancements (Post-MVP)
 
 These are explicitly OUT OF SCOPE for the MVP but documented for future reference:
 

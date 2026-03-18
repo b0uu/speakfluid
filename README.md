@@ -1,6 +1,6 @@
 # SpeakFluid
 
-Conversation-focused AI tutor. Guided voice practice in a target language, with tutoring logic geared toward beginner-intermediate speakers (~A2-B2). Guided situational conversations to improve real comprehension and communication.
+Conversation-focused AI tutor. Guided voice practice in Spanish with immersive scenario intros, exchange-based dialogue, narrator cues, and speech-first tutoring geared toward beginner-intermediate speakers (~A2-B2).
 
 ## Documentation Map
 
@@ -38,11 +38,11 @@ These lessons that I have learned, and more, have been implemented into the proj
 
 1. Enter your API keys (OpenAI + ElevenLabs) — stored locally in your browser, never sent to any server
 2. Pick a conversation scenario from the menu
-3. The tutor opens the conversation in-character, in Spanish (with English translation)
-4. Hold the mic button and respond in Spanish
-5. The tutor corrects mistakes, asks you to retry, then continues the conversation
-6. Complete the scenario in ~8-12 exchanges
-7. See a summary of what you practiced, then move to the next scenario
+3. Read a short scene intro before entering the roleplay
+4. Hold the mic button and respond in Spanish, or use the text fallback
+5. Follow the conversation through immersive exchange cards with optional English translation
+6. Tap Spanish words for quick definitions during the session
+7. Complete the scenario in ~8-12 exchanges and see a summary
 
 ### MVP Scenarios
 

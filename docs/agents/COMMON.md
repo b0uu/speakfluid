@@ -24,6 +24,11 @@ If instructions conflict, prefer model-specific root file (`AGENTS.md` or `CLAUD
 - Never allow overlapping audio states:
   - no recording while TTS plays
   - no concurrent TTS playback
+- Current session UX is:
+  - scene intro
+  - immersive exchange view
+  - completion summary
+- Typing is an intentional fallback alongside push-to-talk.
 - Keep tutor responses short and structured (Spanish + English translation, correction flow, completion marker).
 
 ## Required Build Sequence
@@ -48,11 +53,12 @@ Support three response types:
 - `normal`: Spanish line + English translation
 - `correction`: concise correction + retry prompt
 - `completion`: includes `[SCENARIO_COMPLETE]` and summary text
+- `normal` and `completion` may optionally include a visual-only narrator line prefixed with `[NARRATOR]`
 
 Parser should be strict enough for UI rendering but tolerant to minor format drift.
 
 ### TTS Contract
-Send full tutor message text (Spanish + English) in a single TTS request. Create one blob URL per response and always revoke URLs after playback.
+Send full tutor message text (Spanish + English) in a single TTS request. If a `[NARRATOR]` line is present, exclude it from spoken TTS. Create one blob URL per response and always revoke URLs after playback.
 
 ## Coding Standards
 - Keep components focused and split complex logic into hooks.
