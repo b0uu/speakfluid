@@ -36,6 +36,7 @@ export interface Message {
   spanishText?: string;
   englishText?: string;
   correctionExplanation?: string;
+  correctionTarget?: string;
   retryPrompt?: string;
   summaryText?: string;
   narratorText?: string;
@@ -46,6 +47,7 @@ export interface ParsedTutorResponse {
   spanishText?: string;
   englishText?: string;
   correctionExplanation?: string;
+  correctionTarget?: string;
   retryPrompt?: string;
   summaryText?: string;
   narratorText?: string;

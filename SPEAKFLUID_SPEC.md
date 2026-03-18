@@ -55,7 +55,7 @@ A user can:
 - Layout uses an immersive exchange view rather than a plain transcript.
 - Each exchange centers the tutor line, optional narrator text, user response, and correction state.
 - User can speak with push-to-talk or switch to typing.
-- Tutor audio plays after each response except visual-only narrator text.
+- Tutor audio plays only the Spanish tutor line after each response. English translation is visual-only, and narrator text is never spoken.
 - User can tap Spanish words to see brief contextual definitions.
 
 5. Session completion
@@ -356,6 +356,8 @@ IMPORTANT:
 - Correct a maximum of ONE error per turn. If they make multiple errors, correct the most important one and let the others go. Overcorrection kills conversation flow.
 - If the error is minor (accent, small article mistake) and meaning is clear, you may skip correction entirely and just continue the conversation.
 - The English correction should be 1-2 sentences max. Do not lecture.
+- Put the corrected Spanish word, phrase, or sentence in double quotes.
+- Start the retry line with `Try again:` and include the full corrected Spanish sentence in double quotes when possible.
 - After correction and retry, ALWAYS switch back to Spanish for the next scenario question.
 </error_correction_protocol>
 
@@ -371,7 +373,7 @@ Example:
 
 When doing error correction, the format changes:
 ENGLISH CORRECTION: Brief explanation + correct form
-RETRY PROMPT: Ask them to try again (in English)
+RETRY PROMPT: Start with `Try again:` and include the corrected Spanish sentence in quotes
 
 Then after retry:
 SPANISH PRAISE + NEXT QUESTION: Back to the regular format
@@ -796,8 +798,8 @@ This spec remains the product and implementation reference (especially Sections 
 
 ## 11. Current Known Issues
 
-- TTS accent quality can drift during correction turns because English framing can dominate the spoken delivery.
-- Exchange-card rendering becomes less exact when tutor turns shift from direct dialogue into more descriptive wrap-up language near completion.
+- No critical known issues are currently tracked in the spec.
+- Re-validate correction-turn TTS and late-conversation exchange rendering during the next manual QA pass.
 
 ---
 

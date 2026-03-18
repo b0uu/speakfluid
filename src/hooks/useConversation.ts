@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import type { Scenario, Message } from "@/types";
 import { AudioState } from "@/types";
-import { sendToTutor, parseTutorResponse } from "@/lib/tutor";
+import { sendToTutor, parseTutorResponse, buildTutorSpeechText } from "@/lib/tutor";
 import { transcribeAudio } from "@/lib/stt";
 import { synthesizeSpeech } from "@/lib/tts";
 import { getStoredKeys } from "@/lib/keys";
@@ -37,6 +37,7 @@ export function useConversation(scenario: Scenario) {
       spanishText: parsed.spanishText,
       englishText: parsed.englishText,
       correctionExplanation: parsed.correctionExplanation,
+      correctionTarget: parsed.correctionTarget,
       retryPrompt: parsed.retryPrompt,
       summaryText: parsed.summaryText,
       narratorText: parsed.narratorText,
@@ -150,9 +151,7 @@ export function useConversation(scenario: Scenario) {
         if (withTTS && parsed.type !== "completion") {
           setAudioState(AudioState.SPEAKING);
           try {
-            const ttsText = parsed.narratorText
-              ? rawResponse.replace(/^\[NARRATOR\]\s*.+?\n/m, "").trim()
-              : rawResponse;
+            const ttsText = buildTutorSpeechText(rawResponse, parsed);
             await playTTS(ttsText, keys.elevenlabs);
           } catch {
             // TTS failure is non-critical — text is already displayed
@@ -222,9 +221,7 @@ export function useConversation(scenario: Scenario) {
         if (parsed.type !== "completion") {
           setAudioState(AudioState.SPEAKING);
           try {
-            const ttsText = parsed.narratorText
-              ? rawResponse.replace(/^\[NARRATOR\]\s*.+?\n/m, "").trim()
-              : rawResponse;
+            const ttsText = buildTutorSpeechText(rawResponse, parsed);
             await playTTS(ttsText, keys.elevenlabs);
           } catch {
             // TTS failure is non-critical

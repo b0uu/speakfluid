@@ -4,21 +4,21 @@ import { createOpenAIClient } from "./openai";
 const TUTOR_SYSTEM_PROMPT = `You are the tutor in SpeakFluid, a conversational Spanish practice app. You are currently playing a specific character in a scenario to help the user practice speaking Spanish.
 
 <core_identity>
-Your name and role change per scenario (provided in the scenario context). You speak Latin American Spanish. You are warm, patient, encouraging, and you guide the conversation actively — the user should never feel lost or unsure what to say next.
+Your name and role change per scenario (provided in the scenario context). You speak Latin American Spanish. You are warm, patient, encouraging, and you guide the conversation actively - the user should never feel lost or unsure what to say next.
 </core_identity>
 
 <conversation_rules>
-CRITICAL RULES — follow these exactly:
+CRITICAL RULES - follow these exactly:
 
 1. YOUR LINES MUST BE SHORT. Maximum 2 sentences in Spanish per turn. This is non-negotiable. The user needs to be able to process and respond to what you say. Long tutor turns are the #1 UX failure.
 
-2. YOU drive the conversation. Always end your turn with a specific question or prompt that tells the user exactly what to say next. Never give open-ended questions like "¿Qué más?" or "Cuéntame más." Instead, ask targeted questions: "¿Y a qué hora llegaste?" or "¿Prefieres la playa o el cine?"
+2. YOU drive the conversation. Always end your turn with a specific question or prompt that tells the user exactly what to say next. Never give open-ended questions like "¿Qué más?" or "Cuéntame más." Instead, ask targeted questions like "¿Y a qué hora llegaste?" or "¿Prefieres la playa o el cine?"
 
-3. Keep the conversation moving toward the scenario's completion goal. You know approximately how many exchanges this scenario should take. Pace accordingly — don't rush, but don't let the conversation stall or loop.
+3. Keep the conversation moving toward the scenario's completion goal. You know approximately how many exchanges this scenario should take. Pace accordingly - don't rush, but don't let the conversation stall or loop.
 
 4. Be a character, not a teacher. Stay in your role. If you're a waiter, act like a waiter. If you're a friend, act like a friend. The teaching happens through the conversation, not despite it.
 
-5. When the scenario's completion goal has been met, wrap up naturally in-character (e.g., "¡Que disfrute la comida!" for a restaurant scene) and then add on a new line: [SCENARIO_COMPLETE]
+5. When the scenario's completion goal has been met, wrap up naturally in-character and then add on a new line: [SCENARIO_COMPLETE]
 </conversation_rules>
 
 <narrator_directions>
@@ -45,7 +45,7 @@ Rules:
 When the user makes a grammatical or vocabulary error:
 
 1. First, briefly acknowledge what they were trying to say so they feel heard.
-2. Provide the correction FULLY IN ENGLISH. Highlight the specific Spanish word/phrase they got wrong and show the correct form.
+2. Provide the correction FULLY IN ENGLISH. Highlight the specific Spanish word or phrase they got wrong and show the correct form.
 3. Ask them to try the corrected sentence again.
 4. When they say it correctly (or close enough), praise them briefly IN SPANISH and then continue the scenario conversation IN SPANISH with a new question.
 
@@ -53,6 +53,8 @@ IMPORTANT:
 - Correct a maximum of ONE error per turn. If they make multiple errors, correct the most important one and let the others go.
 - If the error is minor and meaning is clear, you may skip correction entirely and just continue the conversation.
 - The English correction should be 1-2 sentences max. Do not lecture.
+- Put the corrected Spanish word, phrase, or sentence in double quotes.
+- Start the retry line with "Try again:" and include the full corrected Spanish sentence in double quotes when possible.
 - After correction and retry, ALWAYS switch back to Spanish for the next scenario question.
 </error_correction_protocol>
 
@@ -98,7 +100,7 @@ Session summary: You practiced [topic]. You used [grammar point] well. One thing
 - Do NOT give long explanations of grammar rules
 - Do NOT list vocabulary words
 - Do NOT break character to give meta-commentary about the lesson
-- Do NOT ask "¿Entiendes?" or "¿Tiene sentido?" — just move forward
+- Do NOT ask "¿Entiendes?" or "¿Tiene sentido?" - just move forward
 - Do NOT repeat the same question if the user answered it
 - Do NOT use formal usted unless the scenario specifically calls for it
 - Do NOT output more than 3 lines of text total per turn (Spanish + English translation, or correction + retry prompt)
@@ -112,11 +114,22 @@ Session summary: You practiced [topic]. You used [grammar point] well. One thing
 - If user is doing very well: Slightly increase complexity.
 </handling_edge_cases>`;
 
+const NARRATOR_LINE_REGEX = /^\[NARRATOR\]\s*(.+?)$/m;
+const CORRECTION_STARTERS = [
+  "almost",
+  "close",
+  "good try",
+  "not quite",
+  "small fix",
+  "nice try",
+  "great effort",
+];
+
 function buildMessages(
   scenario: Scenario,
   history: Message[]
 ): Array<{ role: "system" | "user" | "assistant"; content: string }> {
-  const userExchanges = history.filter((m) => m.role === "user").length;
+  const userExchanges = history.filter((message) => message.role === "user").length;
 
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: TUTOR_SYSTEM_PROMPT },
@@ -136,20 +149,133 @@ Current exchange number: ${userExchanges + 1}
 ${
   history.length === 0
     ? "Begin the scenario now with your opening line."
-    : `Continue the conversation. The user just spoke.`
+    : "Continue the conversation. The user just spoke."
 }`,
     },
   ];
 
-  // Append conversation history
-  for (const msg of history) {
+  for (const message of history) {
     messages.push({
-      role: msg.role === "tutor" ? "assistant" : "user",
-      content: msg.content,
+      role: message.role === "tutor" ? "assistant" : "user",
+      content: message.content,
     });
   }
 
   return messages;
+}
+
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function cleanDialogueLine(line: string): string {
+  return line.replace(/^[""\u201C]|[""\u201D]$/g, "").trim();
+}
+
+function cleanEnglishLine(line: string): string {
+  return line.replace(/^\(|\)$/g, "").trim();
+}
+
+function stripNarratorLine(raw: string): string {
+  return raw.replace(NARRATOR_LINE_REGEX, "").trim();
+}
+
+function extractQuotedSegments(text: string): string[] {
+  const segments: string[] = [];
+  const regex = /[""\u201C]([^""\u201D]+)[""\u201D]/g;
+  let match: RegExpExecArray | null = regex.exec(text);
+
+  while (match) {
+    const segment = normalizeWhitespace(match[1]);
+    if (segment) {
+      segments.push(segment);
+    }
+    match = regex.exec(text);
+  }
+
+  return segments;
+}
+
+function splitCorrectionText(text: string): {
+  correctionExplanation: string;
+  retryPrompt: string;
+} {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const retryIndex = lines.findIndex((line) =>
+    /^(try again|say|now say|repeat|give it another try)/i.test(line)
+  );
+
+  if (retryIndex !== -1) {
+    return {
+      correctionExplanation: normalizeWhitespace(lines.slice(0, retryIndex).join(" ")),
+      retryPrompt: normalizeWhitespace(lines.slice(retryIndex).join(" ")),
+    };
+  }
+
+  return {
+    correctionExplanation: normalizeWhitespace(lines[0] || text),
+    retryPrompt:
+      normalizeWhitespace(lines.slice(1).join(" ")) || "Try again: say it one more time.",
+  };
+}
+
+function extractCorrectionTarget(
+  correctionExplanation: string,
+  retryPrompt: string
+): string | undefined {
+  const quotedSegments = extractQuotedSegments(`${retryPrompt}\n${correctionExplanation}`);
+
+  if (quotedSegments.length === 0) {
+    return undefined;
+  }
+
+  return quotedSegments.sort((a, b) => b.length - a.length)[0];
+}
+
+function isCorrectionResponse(text: string): boolean {
+  const lowerText = text.toLowerCase().trimStart();
+
+  return (
+    CORRECTION_STARTERS.some((starter) => lowerText.startsWith(starter)) ||
+    /^(try again|say|now say|repeat|give it another try)/im.test(text) ||
+    /correct form|instead of|not ".+?"[,]?\s+say/i.test(text)
+  );
+}
+
+function parseDialogue(text: string): { spanishText: string; englishText: string } {
+  const lines = text
+    .trim()
+    .split("\n")
+    .filter((line) => line.trim());
+
+  const englishIdx = lines.findIndex((line) => line.trim().startsWith("("));
+
+  if (englishIdx !== -1) {
+    return {
+      spanishText: lines
+        .slice(0, englishIdx)
+        .map(cleanDialogueLine)
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+      englishText: lines
+        .slice(englishIdx)
+        .filter((line) => line.trim().startsWith("("))
+        .map(cleanEnglishLine)
+        .filter(Boolean)
+        .join(" ")
+        .trim(),
+    };
+  }
+
+  return {
+    spanishText: cleanDialogueLine(lines[0] || text.trim()),
+    englishText: "",
+  };
 }
 
 export async function sendToTutor(
@@ -172,52 +298,20 @@ export async function sendToTutor(
   return response.choices[0]?.message?.content?.trim() || "";
 }
 
-/** Parse dialogue text into Spanish + English parts. */
-function parseDialogue(text: string): { spanishText: string; englishText: string } {
-  const lines = text
-    .trim()
-    .split("\n")
-    .filter((l) => l.trim());
-
-  // Find the English translation line — typically in parentheses
-  const englishIdx = lines.findIndex((l) => l.trim().startsWith("("));
-  if (englishIdx !== -1) {
-    const spanishText = lines
-      .slice(0, englishIdx)
-      .join(" ")
-      .replace(/^[""\u201C]|[""\u201D]$/g, "")
-      .trim();
-    const englishText = lines[englishIdx]
-      .replace(/^\(|\)$/g, "")
-      .trim();
-    return { spanishText, englishText };
-  }
-
-  // Fallback: first line is Spanish, no English found
-  return {
-    spanishText: lines[0]?.replace(/^[""\u201C]|[""\u201D]$/g, "").trim() || text.trim(),
-    englishText: "",
-  };
-}
-
-/** Parse a raw tutor response into structured parts. */
 export function parseTutorResponse(raw: string): ParsedTutorResponse {
   let narratorText: string | undefined;
   let remaining = raw;
 
-  // Extract narrator line if present
-  const narratorMatch = raw.match(/^\[NARRATOR\]\s*(.+?)$/m);
+  const narratorMatch = raw.match(NARRATOR_LINE_REGEX);
   if (narratorMatch) {
     narratorText = narratorMatch[1].trim();
-    remaining = raw.replace(narratorMatch[0], "").trim();
+    remaining = stripNarratorLine(raw);
   }
 
-  // Check for scenario completion
   if (remaining.includes("[SCENARIO_COMPLETE]")) {
     const [dialogue, rest] = remaining.split("[SCENARIO_COMPLETE]");
-    const summaryText = (rest || "")
-      .trim()
-      .replace(/^Session summary:\s*/i, "");
+    const summaryText = (rest || "").trim().replace(/^Session summary:\s*/i, "");
+
     return {
       type: "completion",
       ...parseDialogue(dialogue.trim()),
@@ -226,32 +320,32 @@ export function parseTutorResponse(raw: string): ParsedTutorResponse {
     };
   }
 
-  // Check for correction pattern
-  const correctionStarters = [
-    "almost",
-    "close",
-    "good try",
-    "not quite",
-    "small fix",
-    "nice try",
-    "great effort",
-  ];
-  const lowerRemaining = remaining.toLowerCase().trimStart();
-  if (correctionStarters.some((s) => lowerRemaining.startsWith(s))) {
-    const lines = remaining.trim().split("\n").filter((l) => l.trim());
+  if (isCorrectionResponse(remaining)) {
+    const { correctionExplanation, retryPrompt } = splitCorrectionText(remaining);
+
     return {
       type: "correction",
-      correctionExplanation: lines[0],
-      retryPrompt:
-        lines.slice(1).join("\n").trim() || "Can you try that again?",
-      // No narratorText on corrections (by prompt design)
+      correctionExplanation,
+      correctionTarget: extractCorrectionTarget(correctionExplanation, retryPrompt),
+      retryPrompt,
     };
   }
 
-  // Normal response: Spanish line + English translation
   return {
     type: "normal",
     ...parseDialogue(remaining),
     narratorText,
   };
+}
+
+export function buildTutorSpeechText(raw: string, parsed: ParsedTutorResponse): string {
+  if (parsed.type === "correction" && parsed.correctionTarget) {
+    return `Escucha y repite: ${parsed.correctionTarget}. Otra vez: ${parsed.correctionTarget}.`;
+  }
+
+  if (parsed.spanishText?.trim()) {
+    return parsed.spanishText.trim();
+  }
+
+  return stripNarratorLine(raw);
 }
