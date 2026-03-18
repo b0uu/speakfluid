@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #F8F8FA;
+  --color-surface: #FFFFFF;
+  --color-blue: #2D5BFF;
+  --color-blue-light: #6B8AFF;
+  --color-blue-50: #EEF2FF;
+  --color-grey-200: #E4E4E8;
+  --color-grey-600: #6B7280;
+  --color-grey-900: #111111;
+  --color-emerald: #10B981;
+  --color-amber: #D97706;
+  --color-amber-50: #FFF8F0;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-grey-50 text-grey-900 font-body;
+  }
+
+  /* Focus ring — keyboard-only, blue accent */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-blue;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Subtle tile pattern for session page background */
+  .bg-tile-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0L40 20L20 40L0 20z' fill='none' stroke='%23D0D4E8' stroke-width='0.5' opacity='0.08'/%3E%3C/svg%3E");
+    background-size: 40px 40px;
+  }
+
+  /* Frosted glass for bottom bar */
+  .bg-frosted {
+    background: rgba(248, 248, 250, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
