@@ -16,6 +16,8 @@ SpeakFluid is a voice-first conversational Spanish tutor web application. Users 
 
 **Current product direction:** The live MVP uses an immersive session flow rather than a plain chat transcript. Users enter through a scene-intro card, progress through exchange-based dialogue cards, and can tap Spanish words for quick contextual definitions.
 
+**Live deployment:** `https://speakfluid.org`
+
 ### What "Done" Looks Like for the MVP
 
 A user can:

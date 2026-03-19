@@ -2,6 +2,8 @@
 
 Conversation-focused AI tutor. Guided voice practice in Spanish with immersive scenario intros, exchange-based dialogue, narrator cues, and speech-first tutoring geared toward beginner-intermediate speakers (~A2-B2).
 
+Live site: `https://speakfluid.org`
+
 ## Documentation Map
 
 - `SPEAKFLUID_SPEC.md`: Product and implementation specification.
@@ -101,7 +103,7 @@ Open [http://localhost:3000](http://localhost:3000) and enter your API keys:
 - **OpenAI API key** (https://platform.openai.com/api-keys)
 - **ElevenLabs API key** (https://elevenlabs.io/app/settings/api-keys)
 
-API keys are stored in browser localStorage and are never sent to any backend.
+API keys are stored in browser localStorage and sent directly to OpenAI and ElevenLabs from the client.
 
 ## Roadmap
 
