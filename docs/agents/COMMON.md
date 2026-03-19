@@ -58,7 +58,7 @@ Support three response types:
 Parser should be strict enough for UI rendering but tolerant to minor format drift.
 
 ### TTS Contract
-Spoken TTS should stay Spanish-first. For normal and completion turns, speak only the tutor's Spanish line. English translation stays visual-only. If a `[NARRATOR]` line is present, exclude it from spoken TTS. For correction turns, prioritize the corrected Spanish phrase or sentence so pronunciation stays accurate. Create one blob URL per response and always revoke URLs after playback.
+Spoken TTS should stay Spanish-first. For normal and completion turns, speak only the tutor's Spanish line. English translation stays visual-only. If a `[NARRATOR]` line is present, exclude it from spoken TTS. For correction turns, speak only the corrected Spanish phrase or sentence. Create one blob URL per response and always revoke URLs after playback.
 
 ## Coding Standards
 - Keep components focused and split complex logic into hooks.

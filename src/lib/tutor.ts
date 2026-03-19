@@ -53,6 +53,8 @@ IMPORTANT:
 - Correct a maximum of ONE error per turn. If they make multiple errors, correct the most important one and let the others go.
 - If the error is minor and meaning is clear, you may skip correction entirely and just continue the conversation.
 - The English correction should be 1-2 sentences max. Do not lecture.
+- The correction line MUST be in English. The only Spanish allowed on that line is the quoted corrected phrase or sentence.
+- Do NOT start correction turns with Spanish phrases like "Buen intento" or "Debes decir".
 - Put the corrected Spanish word, phrase, or sentence in double quotes.
 - Start the retry line with "Try again:" and include the full corrected Spanish sentence in double quotes when possible.
 - After correction and retry, ALWAYS switch back to Spanish for the next scenario question.
@@ -75,8 +77,14 @@ Example:
 (Do you know what you'd like to drink, or do you need a moment?)
 
 When doing error correction, the format changes:
-ENGLISH CORRECTION: Brief explanation + correct form
-RETRY PROMPT: Ask them to try again (in English)
+Line 1: Brief explanation + correct form
+Line 2: Try again: "corrected Spanish sentence"
+
+Do NOT include literal labels like "ENGLISH CORRECTION:" or "RETRY PROMPT:" in the final output.
+
+Correction example:
+You meant to say "Me ducho y después de tomar un café."
+Try again: "Me ducho y después de tomar un café."
 
 Then after retry:
 SPANISH PRAISE + NEXT QUESTION: Back to the regular format
@@ -186,7 +194,7 @@ function extractQuotedSegments(text: string): string[] {
   let match: RegExpExecArray | null = regex.exec(text);
 
   while (match) {
-    const segment = normalizeWhitespace(match[1]);
+    const segment = normalizeWhitespace(match[1].replace(/\*\*/g, ""));
     if (segment) {
       segments.push(segment);
     }
@@ -200,7 +208,25 @@ function splitCorrectionText(text: string): {
   correctionExplanation: string;
   retryPrompt: string;
 } {
-  const lines = text
+  const normalizedText = text
+    .replace(/^\s*ENGLISH CORRECTION:\s*/i, "")
+    .replace(/\s*RETRY PROMPT:\s*/i, "\n")
+    .trim();
+
+  const inlineRetryMatch = normalizedText.match(/\bTry again:\s*.+$/i);
+  if (inlineRetryMatch) {
+    const correctionExplanation = normalizeWhitespace(
+      normalizedText.slice(0, inlineRetryMatch.index).trim()
+    );
+    const retryPrompt = normalizeWhitespace(inlineRetryMatch[0]);
+
+    return {
+      correctionExplanation,
+      retryPrompt,
+    };
+  }
+
+  const lines = normalizedText
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
@@ -217,7 +243,7 @@ function splitCorrectionText(text: string): {
   }
 
   return {
-    correctionExplanation: normalizeWhitespace(lines[0] || text),
+    correctionExplanation: normalizeWhitespace(lines[0] || normalizedText),
     retryPrompt:
       normalizeWhitespace(lines.slice(1).join(" ")) || "Try again: say it one more time.",
   };
@@ -236,11 +262,33 @@ function extractCorrectionTarget(
   return quotedSegments.sort((a, b) => b.length - a.length)[0];
 }
 
+function normalizeCorrectionExplanation(
+  correctionExplanation: string,
+  correctionTarget?: string
+): string {
+  if (!correctionTarget) {
+    return correctionExplanation;
+  }
+
+  const lowerExplanation = correctionExplanation.toLowerCase();
+  const looksSpanish =
+    /[¡¿áéíóúñ]/i.test(correctionExplanation) ||
+    /\b(buen intento|debes decir|intenta otra vez|pero debes)\b/i.test(lowerExplanation);
+
+  if (looksSpanish) {
+    return `You meant to say "${correctionTarget}".`;
+  }
+
+  return correctionExplanation;
+}
+
 function isCorrectionResponse(text: string): boolean {
   const lowerText = text.toLowerCase().trimStart();
 
   return (
     CORRECTION_STARTERS.some((starter) => lowerText.startsWith(starter)) ||
+    lowerText.startsWith("english correction:") ||
+    lowerText.includes("retry prompt:") ||
     /^(try again|say|now say|repeat|give it another try)/im.test(text) ||
     /correct form|instead of|not ".+?"[,]?\s+say/i.test(text)
   );
@@ -322,11 +370,15 @@ export function parseTutorResponse(raw: string): ParsedTutorResponse {
 
   if (isCorrectionResponse(remaining)) {
     const { correctionExplanation, retryPrompt } = splitCorrectionText(remaining);
+    const correctionTarget = extractCorrectionTarget(correctionExplanation, retryPrompt);
 
     return {
       type: "correction",
-      correctionExplanation,
-      correctionTarget: extractCorrectionTarget(correctionExplanation, retryPrompt),
+      correctionExplanation: normalizeCorrectionExplanation(
+        correctionExplanation,
+        correctionTarget
+      ),
+      correctionTarget,
       retryPrompt,
     };
   }
@@ -340,7 +392,7 @@ export function parseTutorResponse(raw: string): ParsedTutorResponse {
 
 export function buildTutorSpeechText(raw: string, parsed: ParsedTutorResponse): string {
   if (parsed.type === "correction" && parsed.correctionTarget) {
-    return `Escucha y repite: ${parsed.correctionTarget}. Otra vez: ${parsed.correctionTarget}.`;
+    return parsed.correctionTarget;
   }
 
   if (parsed.spanishText?.trim()) {

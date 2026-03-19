@@ -18,7 +18,15 @@ export async function synthesizeSpeech(
       body: JSON.stringify({
         text,
         model_id: "eleven_flash_v2_5",
+        language_code: "es",
         output_format: "mp3_44100_128",
+        voice_settings: {
+          stability: 0.55,
+          similarity_boost: 0.8,
+          style: 0.0,
+          speed: 0.95,
+          use_speaker_boost: true,
+        },
       }),
     }
   );

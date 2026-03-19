@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"c:\\\\Users\\\\Administrator\\\\Documents\\\\projects\\\\speakfluid\\\\src\\\\components\\\\ConversationView.tsx\")",
+      "Bash(del \"c:\\\\Users\\\\Administrator\\\\Documents\\\\projects\\\\speakfluid\\\\src\\\\components\\\\MessageBubble.tsx\")",
+      "Bash(del:*)",
+      "Bash(npx next build:*)"
+    ]
+  }
+}
