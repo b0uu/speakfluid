@@ -69,7 +69,7 @@ export default function ApiKeyForm({ onSubmit, loading, error }: ApiKeyFormProps
       </button>
 
       <p className="text-xs text-grey-600 text-center leading-relaxed">
-        Your keys stay in your browser and are never sent to any server.
+        Your keys stay in your browser and are sent directly to OpenAI and ElevenLabs, not to any SpeakFluid backend.
       </p>
     </form>
   );

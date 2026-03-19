@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, DM_Sans, JetBrains_Mono } from "next/font/google";
 import "@/styles/globals.css";
 
@@ -24,7 +24,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SpeakFluid — Conversational Spanish Practice",
+  title: "SpeakFluid - Conversational Spanish Practice",
   description:
     "Voice-first AI Spanish tutor. Guided conversation scenarios to build real speaking confidence.",
 };
