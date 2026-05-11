@@ -59,14 +59,13 @@ export default function LandingPage() {
               Conversational Spanish Practice
             </p>
             <h1 className="font-display text-[2.5rem] lg:text-[4rem] leading-[1.1] tracking-[-0.02em] text-grey-900">
-              Your Spanish<br />
-              starts with<br />
-              <span className="text-blue">speaking.</span>
+              Speak
+              <span className="text-blue">fluid</span>
             </h1>
             <p className="mt-6 text-lg text-grey-600 max-w-md leading-relaxed">
               Guided voice conversations with an AI tutor. Pick a scenario,
-              hold the mic, and practice real dialogue — with corrections,
-              not lectures.
+              hold the mic button, and practice real dialogue with live corrections.
+              
             </p>
           </div>
 
