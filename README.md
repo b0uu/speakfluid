@@ -1,6 +1,6 @@
-# SpeakFluid
+# Speakfluid
 
-Conversation-focused AI tutor. Guided voice practice in Spanish with immersive scenario intros, exchange-based dialogue, narrator cues, and speech-first tutoring geared toward beginner-intermediate speakers (~A2-B2).
+Language learning AI tutor with guided voice practice in Spanish: immersive scenario intros, exchange-based dialogue, narrator cues, and speech-first tutoring geared toward beginner-intermediate speakers (~A2-B2).
 
 Live site: `https://speakfluid.org`
 
@@ -38,7 +38,7 @@ These lessons that I have learned, and more, have been implemented into the proj
 
 # How It Works
 
-1. Enter your API keys (OpenAI + ElevenLabs) — stored locally in your browser, never sent to any server
+1. Enter your API keys (OpenAI + ElevenLabs): stored locally in your browser, never sent to any server
 2. Pick a conversation scenario from the menu
 3. Read a short scene intro before entering the roleplay
 4. Hold the mic button and respond in Spanish, or use the text fallback
@@ -67,7 +67,7 @@ These lessons that I have learned, and more, have been implemented into the proj
 | STT | OpenAI `gpt-4o-transcribe` | Lower error rate than Whisper, strong Spanish support |
 | Tutor Brain | OpenAI `gpt-4o-mini` | Fast, cheap, good instruction following for short structured outputs |
 | TTS | ElevenLabs Flash v2.5 | Best-in-class Spanish pronunciation, sub-100ms latency, natural bilingual prosody |
-| Styling | Tailwind CSS | Custom design tokens, warm Latin-inspired palette — no AI-slop defaults |
+| Styling | Tailwind CSS | Custom design tokens, warm Latin-inspired palette: no AI-slop defaults |
 | Deploy | Vercel | Auto-deploy from GitHub, free tier |
 
 # Development Approach
