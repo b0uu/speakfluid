@@ -63,7 +63,7 @@ These lessons that I have learned, and more, have been implemented into the proj
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| Framework | Next.js 14 (App Router) | React-based, Vercel deployment, TypeScript |
+| Framework | Next.js 15 (App Router) | React-based, Vercel deployment, TypeScript |
 | STT | OpenAI `gpt-4o-transcribe` | Lower error rate than Whisper, strong Spanish support |
 | Tutor Brain | OpenAI `gpt-4o-mini` | Fast, cheap, good instruction following for short structured outputs |
 | TTS | ElevenLabs Flash v2.5 | Best-in-class Spanish pronunciation, sub-100ms latency, natural bilingual prosody |

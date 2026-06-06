@@ -1,922 +1,325 @@
-# SpeakFluid — AI Spanish Conversation Tutor
+# Speakfluid specification
 
-## Complete Project Specification & Implementation Plan
-
-**Version:** 1.0 — MVP
-**Date:** February 2026
-**Build Tool:** Claude Code (Opus 4.6) or Codex (GPT-5.3)
+**Status:** MVP shipped  
+**Live:** `https://speakfluid.org`
 
 ---
 
-## 1. Product Overview
+## 1. Documentation Map
 
-SpeakFluid is a voice-first conversational Spanish tutor web application. Users open the app, enter a guided conversation scenario (e.g., ordering at a restaurant), speak in Spanish with a tutor character, receive gentle corrections and scaffolding, and leave after a 3–5 minute session with a brief recap of what they practiced.
 
-**Core philosophy:** The tutor drives the conversation, not the user. Every exchange should feel like talking to a patient, encouraging friend who happens to be a native Spanish speaker — not like interacting with a chatbot.
+| Document                                            | Role                                                 |
+| --------------------------------------------------- | ---------------------------------------------------- |
+| **This file**                                       | Product behavior, architecture, and contracts        |
+| `[docs/agents/COMMON.md](docs/agents/COMMON.md)`    | Agent non-negotiables: wins on execution constraints |
+| `[README.md](README.md)`                            | Project purpose, setup, high-level roadmap           |
+| `[AGENTS.md](AGENTS.md)` / `[CLAUDE.md](CLAUDE.md)` | Coding-agent entrypoints                             |
 
-**Current product direction:** The live MVP uses an immersive session flow rather than a plain chat transcript. Users enter through a scene-intro card, progress through exchange-based dialogue cards, and can tap Spanish words for quick contextual definitions.
 
-**Live deployment:** `https://speakfluid.org`
+Engineering experiments (evals, model comparisons, structured outputs) belong in separate planning docs, not here.
 
-### What "Done" Looks Like for the MVP
+When docs conflict: agent root file -> `COMMON.md` -> this spec.
 
-A user can:
-1. Open the app in a browser
-2. Enter their OpenAI API key and ElevenLabs API key (both persisted in localStorage)
-3. See a menu of 8 conversation scenarios with brief English descriptions
-4. Select a scenario
-5. See a short scene-intro card that explains the roleplay
-6. Hear the tutor begin speaking in Spanish
-7. Hold a button to speak, release to send, or use a text fallback
-8. Follow the conversation through immersive exchange cards with optional translation
-9. Tap Spanish words for quick contextual definitions
-10. Get corrected naturally when they make errors, with English explanation
-11. Complete the scenario in ~8-12 exchanges
-12. See a brief summary of what they practiced and errors they made
-13. Click "Next" to enter the next scenario, or return to the menu
+Treat this document as a guideline but feel free to experiment beyond these constraints, as long as development aligns with vision of seamless conversational exchanges.
 
 ---
 
-## 2. User Flow (Step by Step)
+## 2. Product Summary
 
-1. Landing / API setup
-- User enters OpenAI and ElevenLabs keys.
-- Keys are validated and stored in `localStorage`.
-- Returning users can continue or replace stored keys.
+Speakfluid is a voice based Spanish conversation tutor for beginner to intermediate speakers (~A2–B2). In its current version, users pick a guided roleplay scenario, speak with a tutor character, receive gentle corrections, and finish with a brief recap.
 
-2. Scenario select
-- User sees a grid of eight scenarios with difficulty and exchange count.
-- Selecting a card opens the session route for that scenario.
+**Core philosophy:** The tutor drives the conversation, not the user. Every exchange should feel like talking to a patient native speaker, not a chatbot.
 
-3. Scene intro
-- User sees a focused intro card before the conversation begins.
-- Card shows the scene, the user's role, the tutor character, and practice focus.
-- User explicitly starts the roleplay with a "Begin Conversation" action.
+**Session shape:** Scene intro -> around 8–12 exchanges (around 5 min typical) -> completion summary.
 
-4. Conversation session
-- Layout uses an immersive exchange view rather than a plain transcript.
-- Each exchange centers the tutor line, optional narrator text, user response, and correction state.
-- User can speak with push-to-talk or switch to typing.
-- Tutor audio plays only the Spanish tutor line after each response. English translation is visual-only, and narrator text is never spoken.
-- User can tap Spanish words to see brief contextual definitions.
+**MVP capabilities:**
 
-5. Session completion
-- Tutor ends naturally and emits `[SCENARIO_COMPLETE]`.
-- App shows a summary overlay with recap text and next-step navigation.
+1. Enter OpenAI + ElevenLabs API keys (stored in `localStorage`)
+2. Choose from 8 scenarios
+3. Read a scene-intro card, then begin the roleplay
+4. Hold mic to speak (push-to-talk) or type as fallback
+5. Follow immersive exchange cards with optional English translation
+6. Tap spanish words for contextual definitions
+7. Get in-character corrections with English explanation
+8. Complete scenario and navigate to the next scenario or return to menu
 
 ---
 
-## 3. Architecture & Tech Stack
+## 3. User Flow
+
+### 1. Landing / API setup
+
+- User enters OpenAI and ElevenLabs keys
+- Keys are validated and stored in `localStorage` (`speakfluid-openai-key`, `speakfluid-elevenlabs-key`)
+- Returning users can continue or replace keys
+
+### 2. Scenario select (`/scenarios`)
+
+- Grid of 8 scenarios with difficulty and target exchange count
+- Selecting a card opens `/session/[scenarioId]`
+- Redirects to landing if keys are missing
+
+### 3. Scene intro
+
+- Full-screen intro: scene, user role, tutor character, practice focus
+- User taps "Begin Conversation" to start
+
+### 4. Conversation
+
+- Immersive exchange view (not a plain chat transcript)
+- Push-to-talk mic or text fallback (text path does **not** play TTS)
+- Tutor audio: Spanish dialogue only; English translation and `[NARRATOR]` lines are visual-only
+- Tap Spanish words for brief contextual definitions (LLM lookup, cached)
+- Spacebar hold-to-talk on desktop
+
+### 5. Completion
+
+- Tutor emits `[SCENARIO_COMPLETE]` with an English session summary
+- Summary overlay with "Next Scenario" and "Back to Menu"
+
+---
+
+## 4. Architecture
 
 ### Stack
 
-| Layer | Technology | Rationale |
-|-------|-----------|-----------|
-| Framework | **Next.js 14+ (App Router)** | React-based, easy Vercel deploy, great for portfolio |
-| Language | **TypeScript** | Type safety for audio state + API contracts |
-| Styling | **Tailwind CSS** | Rapid styling, but with custom design tokens to avoid AI-slop |
-| STT | **OpenAI GPT-4o Transcribe** (`gpt-4o-transcribe`) | Lower error rate than Whisper, same SDK, better accent handling |
-| LLM | **OpenAI GPT-4o-mini** | Fast, cheap, good instruction following, same API key |
-| TTS | **ElevenLabs Flash v2.5** | Strong Spanish pronunciation and bilingual prosody; chosen for tutor voice quality |
-| State | **React state + Context** | No backend needed for MVP |
-| Deploy | **Vercel** | Free tier, instant deploys, perfect for portfolio |
 
-### Why This Provider Split (OpenAI + ElevenLabs)
+| Layer     | Technology                                           |
+| --------- | ---------------------------------------------------- |
+| Framework | Next.js 15 App Router, React 19, TypeScript          |
+| Styling   | Tailwind CSS (custom tokens in `tailwind.config.ts`) |
+| STT       | OpenAI `gpt-4o-transcribe` (`language: "es"` hint)   |
+| Tutor LLM | OpenAI `gpt-4o-mini` (temp 0.7, max_tokens 250)      |
+| TTS       | ElevenLabs `eleven_flash_v2_5`, voice "Laura"        |
+| State     | React hooks (`useConversation`, `useAudioRecorder`)  |
+| Deploy    | Vercel: client-only, no backend/DB/auth              |
 
-The previous attempt suffered from integration complexity across many services. This MVP uses just two providers with clear responsibilities:
 
-- **OpenAI** handles STT (gpt-4o-transcribe) and LLM (GPT-4o-mini) — same SDK, same API key
-- **ElevenLabs** handles TTS only — separate SDK, separate API key
+### Provider split
 
-Why not keep TTS on OpenAI too? Because TTS quality directly impacts learning — the user is learning pronunciation by listening. In project testing, ElevenLabs has produced more natural Spanish pronunciation and smoother bilingual prosody for this use case.
+- **OpenAI**: STT + tutor LLM (one API key, one SDK)
+- **ElevenLabs**: TTS only (separate key; chosen for natural Latin American Spanish pronunciation)
 
-The tradeoff is two API keys instead of one. The landing page collects both.
+Tradeoff: two API keys instead of one. TTS quality directly affects learning because users mimic pronunciation.
 
-### Voice Pipeline Architecture
+### Voice pipeline
 
 ```
-USER HOLDS BUTTON          RELEASE BUTTON           LLM CALL              TTS PLAYBACK
-     │                          │                      │                      │
-     ▼                          ▼                      ▼                      ▼
-┌──────────┐            ┌──────────────┐        ┌───────────┐        ┌──────────────┐
-│ MediaRec │  ────────▶ │ OpenAI       │ ─────▶ │ GPT-4o    │ ─────▶ │ ElevenLabs   │
-│ (browser)│  audio     │ gpt-4o-      │ text   │ mini      │ text   │ Flash v2.5   │
-│          │  blob      │ transcribe   │        │           │        │ (streaming)  │
-└──────────┘            └──────────────┘        └───────────┘        └──────────────┘
-                                                      │                      │
-                                                      ▼                      ▼
-                                                ┌───────────┐        ┌──────────────┐
-                                                │ Update     │        │ Audio elem   │
-                                                │ transcript │        │ plays back   │
-                                                │ + state    │        │              │
-                                                └───────────┘        └──────────────┘
+Hold mic → Record (MediaRecorder) → STT → Tutor LLM → Parse → TTS → Play audio → IDLE
 ```
 
-### Critical Design Decision: Push-to-Talk
+Implementation: `[src/hooks/useConversation.ts](src/hooks/useConversation.ts)`, `[src/lib/stt.ts](src/lib/stt.ts)`, `[src/lib/tutor.ts](src/lib/tutor.ts)`, `[src/lib/tts.ts](src/lib/tts.ts)`.
 
-The MVP uses **push-to-talk** (hold button to record, release to send). This eliminates the entire class of bugs from the previous attempt:
+TTS is non-streaming: `fetch` returns an MP3 blob URL, played via `HTMLAudioElement`, then revoked.
 
-- ✅ No VAD (Voice Activity Detection) needed — user controls when they're done
-- ✅ No "processes input when user pauses to think" — recording only happens while button is held
-- ✅ No double-audio — clear state machine prevents overlapping playback
-- ✅ No cut-offs — user explicitly signals when they're finished
+### Push-to-talk (MVP default)
 
-### Audio State Machine
+Hold button to record, release to send. Intentionally **no VAD** (voice activity detection):
 
-This is critical. The previous attempt had glitches because audio states were not managed rigorously. The app must enforce this state machine:
+- User controls when they are done speaking
+- No processing during thinking pauses
+- State machine prevents overlapping record/playback
+- No cut-offs from premature silence detection
+
+### Audio state machine
 
 ```
-                    ┌──────────┐
-                    │   IDLE   │ ◀──────────────────────────────┐
-                    └────┬─────┘                                │
-                         │ user presses mic                     │
-                         ▼                                      │
-                    ┌──────────┐                                │
-                    │RECORDING │                                │
-                    └────┬─────┘                                │
-                         │ user releases mic                    │
-                         ▼                                      │
-                    ┌──────────────┐                            │
-                    │ TRANSCRIBING │  (gpt-4o-transcribe call)  │
-                    └────┬─────────┘                            │
-                         │ transcription received               │
-                         ▼                                      │
-                    ┌──────────┐                                │
-                    │ THINKING │  (LLM API call)                │
-                    └────┬─────┘                                │
-                         │ response received                    │
-                         ▼                                      │
-                    ┌──────────┐                                │
-                    │ SPEAKING │  (TTS playing)                 │
-                    └────┬─────┘                                │
-                         │ audio playback complete              │
-                         └──────────────────────────────────────┘
-
-RULES:
-- User CANNOT record while state is TRANSCRIBING, THINKING, or SPEAKING
-- Mic button is visually disabled during non-IDLE states
-- Each state has a visual indicator (icon + text)
-- If any API call fails, return to IDLE with error toast
-- TTS audio must fully complete before returning to IDLE
+IDLE → RECORDING → TRANSCRIBING → THINKING → SPEAKING → IDLE
 ```
+
+**Rules:**
+
+- User cannot record while state is TRANSCRIBING, THINKING, or SPEAKING
+- Mic button disabled outside IDLE
+- Status indicator shows current state
+- Any API/audio failure returns to IDLE with user-visible error (inline banner on session page)
+- TTS must finish before returning to IDLE
 
 ---
 
-## 4. Scenario Definitions
+## 5. Behavior Contracts
 
-Each scenario is a self-contained conversation template. The LLM uses these to guide the conversation.
+Canonical implementations live in source files. Do not duplicate prompt or parser logic in docs.
 
-### Scenario Schema
+### Tutor LLM
+
+- System prompt: `TUTOR_SYSTEM_PROMPT` in `[src/lib/tutor.ts](src/lib/tutor.ts)`
+- Scenario context injected each turn (role, situation, target exchanges, grammar focus, completion trigger)
+- Full conversation history sent as separate user/assistant messages via `buildMessages()`
+- Opening line comes from scenario data, not the LLM (on session start)
+
+**Prompt rules (summary):**
+
+- Max 2 Spanish sentences per turn; tutor drives with specific questions
+- Stay in character; teach through conversation
+- Corrections: English explanation + quoted Spanish fix + "Try again:" retry line; max one error per turn
+- Optional `[NARRATOR]` line (visual only, ~every 2–3 turns, never on corrections or first turn)
+- Completion: in-character wrap-up, then `[SCENARIO_COMPLETE]` + English session summary
+
+### Tutor response types
+
+
+| Type         | Content                                                | TTS                           |
+| ------------ | ------------------------------------------------------ | ----------------------------- |
+| `normal`     | Spanish line + English translation in parentheses      | Spanish line only             |
+| `correction` | English explanation + retry prompt with quoted Spanish | Corrected Spanish phrase only |
+| `completion` | Final Spanish line + `[SCENARIO_COMPLETE]` + summary   | Spanish line only (if any)    |
+
+
+Optional `[NARRATOR]` on `normal` and `completion`, never spoken.
+
+Parsing: `parseTutorResponse()` and `buildTutorSpeechText()` in `[src/lib/tutor.ts](src/lib/tutor.ts)`. Parser is strict enough for UI but tolerant of minor format drift.
+
+### Message and exchange types
+
+Types defined in `[src/types/index.ts](src/types/index.ts)`. Exchanges grouped from flat messages by `[src/lib/exchanges.ts](src/lib/exchanges.ts)`.
+
+### TTS contract
+
+Matches `[docs/agents/COMMON.md](docs/agents/COMMON.md)`:
+
+- Speak Spanish tutor lines only; English stays visual
+- Exclude `[NARRATOR]` from spoken audio
+- Correction turns: speak the corrected Spanish phrase/sentence
+- One blob URL per response; revoke after playback
+
+### STT contract
+
+- Audio blob → OpenAI `gpt-4o-transcribe` with `language: "es"`
+- Empty or very short recordings rejected before API call
+- Known gap: hardcoded Spanish hint struggles with Spanglish/code-switching (see §9)
+
+### API entrypoints
+
+
+| Concern        | File                                             |
+| -------------- | ------------------------------------------------ |
+| STT            | `[src/lib/stt.ts](src/lib/stt.ts)`               |
+| Tutor + parser | `[src/lib/tutor.ts](src/lib/tutor.ts)`           |
+| TTS            | `[src/lib/tts.ts](src/lib/tts.ts)`               |
+| Word lookup    | `[src/lib/wordLookup.ts](src/lib/wordLookup.ts)` |
+| Key storage    | `[src/lib/keys.ts](src/lib/keys.ts)`             |
+
+
+---
+
+## 6. Scenarios
+
+### Schema
 
 ```typescript
 interface Scenario {
   id: string;
-  title: string;                    // English title for the card
-  description: string;              // 1-line English description
+  title: string;
+  description: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
-  icon: string;                     // Emoji
-  targetExchanges: number;          // How many back-and-forth exchanges before wrapping up
-  tutorRole: string;                // Who the tutor plays in this scenario
-  userRole: string;                 // Who the user plays
-  situation: string;                // Detailed context for the LLM
-  openingLine: string;              // Tutor's first line (in Spanish)
-  keyVocabulary: string[];          // Words/phrases the tutor should try to elicit
-  grammarFocus: string;             // Grammar concept practiced
-  completionTrigger: string;        // What constitutes "done" for this scenario
+  icon: string;
+  targetExchanges: number;
+  tutorRole: string;
+  userRole: string;
+  situation: string;
+  openingLine: string;       // Spanish, played/displayed at session start
+  keyVocabulary: string[];
+  grammarFocus: string;
+  completionTrigger: string;
 }
 ```
 
-### The 8 MVP Scenarios
+Canonical data: `[src/lib/scenarios.ts](src/lib/scenarios.ts)`
 
-```typescript
-const scenarios: Scenario[] = [
-  {
-    id: "introducing-yourself",
-    title: "Meeting Someone New",
-    description: "Introduce yourself and learn about a new acquaintance at a café.",
-    difficulty: "beginner",
-    icon: "👋",
-    targetExchanges: 8,
-    tutorRole: "A friendly college student named Carlos who is sitting at a café",
-    userRole: "A traveler who just sat down at the same table",
-    situation: "The user has just sat down at a busy café in Mexico City. Carlos, a local college student, is already sitting there and starts a friendly conversation. The goal is to exchange basic personal information: names, where you're from, what you do, and a bit about your interests.",
-    openingLine: "¡Hola! Perdona, ¿está ocupada esta silla? Ah, ya veo que no. Me llamo Carlos. ¿Y tú, cómo te llamas?",
-    keyVocabulary: ["me llamo", "soy de", "mucho gusto", "¿a qué te dedicas?", "me gusta"],
-    grammarFocus: "Present tense ser/estar, basic questions",
-    completionTrigger: "User has shared their name, origin, and at least one interest or occupation"
-  },
-  {
-    id: "ordering-food",
-    title: "Ordering at a Restaurant",
-    description: "Order a meal, ask about the menu, and handle a small mix-up with your order.",
-    difficulty: "beginner",
-    icon: "🍽️",
-    targetExchanges: 10,
-    tutorRole: "A friendly waiter at a casual Mexican restaurant",
-    userRole: "A customer ordering dinner",
-    situation: "The user is at a casual restaurant in Guadalajara. The waiter is friendly and patient. The conversation should cover: greeting, asking what's good, ordering a main dish and a drink, and at the end the waiter accidentally brings the wrong drink, giving the user a chance to politely correct the mistake.",
-    openingLine: "¡Buenas noches! Bienvenido. Aquí tiene el menú. ¿Ya sabe qué quiere tomar, o necesita un momento?",
-    keyVocabulary: ["me gustaría", "¿qué recomienda?", "la cuenta", "para mí", "disculpe"],
-    grammarFocus: "Conditional (me gustaría), polite requests, food vocabulary",
-    completionTrigger: "User has ordered food, a drink, and resolved the order mix-up"
-  },
-  {
-    id: "last-weekend",
-    title: "What Did You Do Last Weekend?",
-    description: "Tell a friend about your weekend activities and hear about theirs.",
-    difficulty: "intermediate",
-    icon: "📅",
-    targetExchanges: 10,
-    tutorRole: "A coworker named Lucía who you're chatting with during a break",
-    userRole: "A coworker sharing weekend stories",
-    situation: "Monday morning at work. Lucía, a friendly coworker, asks the user about their weekend. The user should describe 2-3 activities they did. Lucía will share her own weekend too and ask follow-up questions. This practices past tense narration in a natural, low-pressure way.",
-    openingLine: "¡Buenos días! ¿Qué tal el fin de semana? Yo estoy cansadísima, hice demasiadas cosas. ¿Tú qué hiciste?",
-    keyVocabulary: ["fui", "hice", "comí", "vi", "salí con", "el sábado", "el domingo"],
-    grammarFocus: "Preterite tense (regular and irregular), time expressions",
-    completionTrigger: "User has described at least 2 weekend activities using past tense"
-  },
-  {
-    id: "asking-directions",
-    title: "Finding Your Way",
-    description: "Ask a local for directions to a museum in an unfamiliar city.",
-    difficulty: "intermediate",
-    icon: "🗺️",
-    targetExchanges: 8,
-    tutorRole: "A helpful local standing on a street corner",
-    userRole: "A tourist trying to find a museum",
-    situation: "The user is a tourist in Buenos Aires trying to find the Museo Nacional de Bellas Artes. They approach a friendly local for directions. The local gives step-by-step directions using landmarks. The user should confirm understanding and ask clarifying questions. The local intentionally gives slightly complex directions to encourage the user to ask for repetition.",
-    openingLine: "¿Sí? ¿En qué le puedo ayudar?",
-    keyVocabulary: ["¿dónde queda?", "siga derecho", "doble a la izquierda/derecha", "a dos cuadras", "¿puede repetir?"],
-    grammarFocus: "Imperative commands, location prepositions, clarification phrases",
-    completionTrigger: "User has understood and confirmed the directions"
-  },
-  {
-    id: "daily-routine",
-    title: "Your Daily Routine",
-    description: "Describe your typical day to a language exchange partner.",
-    difficulty: "beginner",
-    icon: "⏰",
-    targetExchanges: 10,
-    tutorRole: "A language exchange partner named Sofía on a video call",
-    userRole: "Someone practicing Spanish with a language partner",
-    situation: "The user is doing a language exchange via video call with Sofía from Colombia. She wants to practice talking about daily routines — what time you wake up, what you do in the morning, afternoon, and evening. Sofía will share her own routine too. This is a casual, supportive conversation.",
-    openingLine: "¡Hola! ¡Qué bueno verte! Bueno, hoy quiero que practiquemos hablar sobre la rutina diaria. ¿A qué hora te levantas normalmente?",
-    keyVocabulary: ["me levanto", "desayuno", "trabajo/estudio", "almuerzo", "me acuesto", "normalmente", "después"],
-    grammarFocus: "Reflexive verbs, time expressions, present tense daily activities",
-    completionTrigger: "User has described morning, afternoon, and evening routines"
-  },
-  {
-    id: "shopping-market",
-    title: "Shopping at a Market",
-    description: "Buy fruit and souvenirs at an open-air market, ask prices, and negotiate a little.",
-    difficulty: "intermediate",
-    icon: "🛒",
-    targetExchanges: 10,
-    tutorRole: "A cheerful vendor at an outdoor market",
-    userRole: "A shopper looking for fruit and a souvenir",
-    situation: "The user is at a colorful outdoor market in Oaxaca, Mexico. The vendor sells both fresh fruit and small handmade souvenirs. The user should ask about prices, quantities, and try a gentle negotiation on the souvenir price. The vendor is friendly but will push back a little on the price, making it a fun exchange.",
-    openingLine: "¡Pásele, pásele! Tenemos las mejores frutas de todo Oaxaca. ¿Qué le ofrezco hoy?",
-    keyVocabulary: ["¿cuánto cuesta?", "me da", "kilo", "demasiado caro", "¿no me puede dar un descuento?", "me lo llevo"],
-    grammarFocus: "Numbers, prices, informal negotiation phrases, demonstratives",
-    completionTrigger: "User has asked about prices and completed a purchase"
-  },
-  {
-    id: "making-plans",
-    title: "Making Plans With a Friend",
-    description: "Coordinate with a friend to pick a time, place, and activity for the weekend.",
-    difficulty: "intermediate",
-    icon: "📱",
-    targetExchanges: 10,
-    tutorRole: "A friend named Diego who wants to hang out this weekend",
-    userRole: "A friend trying to make weekend plans",
-    situation: "Diego calls the user to make plans for Saturday. They need to agree on what to do (movie, beach, restaurant, etc.), what time, and where to meet. Diego will suggest things but also be flexible, creating natural back-and-forth negotiation. Some of Diego's initial suggestions won't work, requiring the user to suggest alternatives.",
-    openingLine: "¡Ey! ¿Qué onda? Oye, ¿tienes planes para el sábado? Estaba pensando que podríamos hacer algo juntos.",
-    keyVocabulary: ["¿qué te parece?", "podríamos", "a las (hora)", "nos vemos en", "mejor", "prefiero"],
-    grammarFocus: "Conditional (podríamos), expressing preferences, time/place vocabulary",
-    completionTrigger: "Users have agreed on an activity, time, and meeting place"
-  },
-  {
-    id: "describing-family",
-    title: "Talking About Your Family",
-    description: "Share about your family members and hear about someone else's family.",
-    difficulty: "advanced",
-    icon: "👨‍👩‍👧‍👦",
-    targetExchanges: 10,
-    tutorRole: "A host mother named Doña Carmen at a homestay",
-    userRole: "A student staying with a host family",
-    situation: "The user has just arrived at their homestay in Costa Rica. Doña Carmen, the warm and curious host mother, wants to get to know the user's family. She'll ask about parents, siblings, what they do, and their personalities. She'll also share about her own family. This practices descriptive language and more complex sentence structures.",
-    openingLine: "¡Bienvenido a tu nueva casa! Siéntate, siéntate. Cuéntame de tu familia. ¿Tienes hermanos?",
-    keyVocabulary: ["mi hermano/a mayor/menor", "se dedica a", "se parece a", "nos llevamos bien/mal", "tiene (edad) años"],
-    grammarFocus: "Possessives, physical/personality descriptions, family vocabulary, ser vs estar",
-    completionTrigger: "User has described at least 3 family members with some detail"
-  }
-];
+### Scenario list
+
+
+| ID                     | Title                         | Difficulty   | Exchanges | Grammar focus                            |
+| ---------------------- | ----------------------------- | ------------ | --------- | ---------------------------------------- |
+| `introducing-yourself` | Meeting Someone New           | beginner     | 8         | Present tense ser/estar, basic questions |
+| `ordering-food`        | Ordering at a Restaurant      | beginner     | 10        | Conditional, polite requests, food vocab |
+| `daily-routine`        | Your Daily Routine            | beginner     | 10        | Reflexive verbs, time expressions        |
+| `last-weekend`         | What Did You Do Last Weekend? | intermediate | 10        | Preterite tense, narration               |
+| `asking-directions`    | Finding Your Way              | intermediate | 8         | Imperative commands, directions          |
+| `shopping-market`      | Shopping at a Market          | intermediate | 10        | Numbers, prices, negotiation             |
+| `making-plans`         | Making Plans With a Friend    | intermediate | 10        | Conditional, preferences                 |
+| `describing-family`    | Talking About Your Family     | advanced     | 10        | Descriptions, ser vs estar               |
+
+
+---
+
+## 7. UI Surface
+
+**Design:** Clean editorial layout: blue/grey palette, DM Serif Display + DM Sans + JetBrains Mono. Tokens in `[tailwind.config.ts](tailwind.config.ts)`; fonts loaded in `[src/app/layout.tsx](src/app/layout.tsx)`. Global styles in `[src/styles/globals.css](src/styles/globals.css)`.
+
+**Key components:**
+
+
+| Component                                              | Purpose                             |
+| ------------------------------------------------------ | ----------------------------------- |
+| `ApiKeyForm`                                           | Landing key entry + validation      |
+| `ScenarioGrid` / `ScenarioCard`                        | Scenario menu                       |
+| `SceneIntro`                                           | Pre-conversation setup card         |
+| `ImmersiveDialogueView` / `ExchangeCard`               | Exchange-based session renderer     |
+| `TappableSpanishText` / `WordTooltip`                  | Tap-to-define Spanish words         |
+| `MicButton` / `StatusIndicator` / `WaveformVisualizer` | Push-to-talk controls               |
+| `ScenarioHeader`                                       | Session context + exchange progress |
+| `SessionSummary`                                       | Completion overlay + navigation     |
+| `OnboardingTooltip`                                    | First-visit mic hint                |
+
+
+**Routes:** `/` (landing), `/scenarios`, `/session/[scenarioId]`
+
+---
+
+## 8. Code Map
+
+```
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx                    # Landing / API keys
+│   ├── scenarios/page.tsx
+│   └── session/[scenarioId]/page.tsx
+├── components/                     # UI (see §7)
+├── hooks/
+│   ├── useConversation.ts          # Core state machine + pipeline
+│   ├── useAudioRecorder.ts
+│   ├── useAudioPlayer.ts
+│   └── useTTS.ts                   # Unused: TTS lives in useConversation
+├── lib/
+│   ├── openai.ts, elevenlabs.ts    # Client factories + key validation
+│   ├── stt.ts, tts.ts, tutor.ts
+│   ├── scenarios.ts, exchanges.ts, wordLookup.ts, keys.ts
+└── types/index.ts
 ```
 
 ---
 
-## 5. The Tutor System Prompt
+## 9. Known Limitations
 
-This is the most critical component. It directly addresses every failure from the previous attempt.
-
-```
-You are the tutor in SpeakFluid, a conversational Spanish practice app. You are currently playing a specific character in a scenario to help the user practice speaking Spanish.
-
-<core_identity>
-Your name and role change per scenario (provided in the scenario context). You speak Latin American Spanish. You are warm, patient, encouraging, and you guide the conversation actively — the user should never feel lost or unsure what to say next.
-</core_identity>
-
-<conversation_rules>
-CRITICAL RULES — follow these exactly:
-
-1. YOUR LINES MUST BE SHORT. Maximum 2 sentences in Spanish per turn. This is non-negotiable. The user needs to be able to process and respond to what you say. Long tutor turns are the #1 UX failure.
-
-2. YOU drive the conversation. Always end your turn with a specific question or prompt that tells the user exactly what to say next. Never give open-ended questions like "¿Qué más?" or "Cuéntame más." Instead, ask targeted questions: "¿Y a qué hora llegaste?" or "¿Prefieres la playa o el cine?"
-
-3. Keep the conversation moving toward the scenario's completion goal. You know approximately how many exchanges this scenario should take. Pace accordingly — don't rush, but don't let the conversation stall or loop.
-
-4. Be a character, not a teacher. Stay in your role. If you're a waiter, act like a waiter. If you're a friend, act like a friend. The teaching happens through the conversation, not despite it.
-
-5. When the scenario's completion goal has been met, wrap up naturally in-character (e.g., "¡Que disfrute la comida!" for a restaurant scene) and then add on a new line: [SCENARIO_COMPLETE]
-</conversation_rules>
-
-<error_correction_protocol>
-When the user makes a grammatical or vocabulary error:
-
-1. First, briefly acknowledge what they were trying to say so they feel heard.
-2. Provide the correction FULLY IN ENGLISH. Highlight the specific Spanish word/phrase they got wrong and show the correct form.
-3. Ask them to try the corrected sentence again.
-4. When they say it correctly (or close enough), praise them briefly IN SPANISH and then continue the scenario conversation IN SPANISH with a new question.
-
-Example flow:
-- User: "Yo fue al parque el sábado."
-- Tutor: "Almost! 'Fue' is for él/ella/usted. For 'yo,' the correct form is 'fui' — Yo fui al parque. Can you try the whole sentence again?"
-- User: "Yo fui al parque el sábado."
-- Tutor: "¡Perfecto! ¿Y qué hiciste en el parque?"
-
-IMPORTANT:
-- Correct a maximum of ONE error per turn. If they make multiple errors, correct the most important one and let the others go. Overcorrection kills conversation flow.
-- If the error is minor (accent, small article mistake) and meaning is clear, you may skip correction entirely and just continue the conversation.
-- The English correction should be 1-2 sentences max. Do not lecture.
-- The correction line MUST be in English. The only Spanish allowed on that line is the quoted corrected phrase or sentence.
-- Do NOT start correction turns with Spanish phrases like "Buen intento" or "Debes decir".
-- Put the corrected Spanish word, phrase, or sentence in double quotes.
-- Start the retry line with `Try again:` and include the full corrected Spanish sentence in double quotes when possible.
-- After correction and retry, ALWAYS switch back to Spanish for the next scenario question.
-</error_correction_protocol>
-
-<bilingual_output_format>
-Your responses must follow this exact format for every turn:
-
-SPANISH LINE(S): Your in-character dialogue in Spanish (1-2 sentences max).
-ENGLISH LINE: A natural English translation of what you just said, in parentheses on the next line.
-
-Example:
-"¿Ya sabe qué quiere tomar, o necesita un momento?"
-(Do you know what you'd like to drink, or do you need a moment?)
-
-When doing error correction, the format changes:
-Line 1: Brief explanation + correct form
-Line 2: Start with `Try again:` and include the corrected Spanish sentence in quotes
-
-Do not output literal labels like `ENGLISH CORRECTION:` or `RETRY PROMPT:`.
-
-Correction example:
-You meant to say "Me ducho y despues de tomar un cafe."
-Try again: "Me ducho y despues de tomar un cafe."
-
-Then after retry:
-SPANISH PRAISE + NEXT QUESTION: Back to the regular format
-(English translation)
-
-NEVER mix Spanish and English within the same sentence. They are always on separate lines.
-</bilingual_output_format>
-
-<pacing_and_completion>
-- Track how many exchanges have occurred. The scenario context tells you the target number.
-- Around 75% of the way through, start guiding toward the natural conclusion of the scenario.
-- At 100%, wrap up the conversation naturally in-character.
-- After your final in-character line, output [SCENARIO_COMPLETE] on its own line.
-- In the completion turn, include a brief 2-3 sentence summary in English of what the user practiced and any corrections made during the session. Format:
-
-[SCENARIO_COMPLETE]
-Session summary: You practiced [topic]. You used [grammar point] well. One thing to keep practicing: [correction area].
-</bilingual_output_format>
-
-<what_not_to_do>
-- Do NOT give long explanations of grammar rules
-- Do NOT list vocabulary words
-- Do NOT break character to give meta-commentary about the lesson
-- Do NOT ask "¿Entiendes?" or "¿Tiene sentido?" — just move forward
-- Do NOT repeat the same question if the user answered it
-- Do NOT use formal usted unless the scenario specifically calls for it
-- Do NOT output more than 3 lines of text total per turn (Spanish + English translation, or correction + retry prompt)
-</what_not_to_do>
-
-<handling_edge_cases>
-- If user responds in English: Gently prompt them to try in Spanish. Say: "¡Inténtalo en español! Try saying: [give them a starter phrase]."
-- If user says something off-topic: Briefly acknowledge, then steer back. "Jaja, interesante. Pero dime — [scenario-relevant question]."
-- If user says "I don't know" or seems stuck: Give them a scaffold. "No te preocupes. Try saying: 'Yo...' and then tell me [specific thing]."
-- If user's response is too short (just one word): Accept it, but prompt expansion. "Bien, ¿pero puedes decirme un poco más? Por ejemplo..."
-- If user is doing very well: Slightly increase complexity. Use less common vocabulary, speak slightly faster (reflected in more natural/contracted phrasing), or add a small unexpected twist to the scenario.
-</handling_edge_cases>
-```
+- **Client-side API keys**: sent directly from browser to providers (`dangerouslyAllowBrowser`). Fine for personal BYOK MVP; not production SaaS.
+- **Spanglish / code-switching STT**: `language: "es"` hint can mis-transcribe mixed English–Spanish input.
+- **No persistence**: no session history, progress tracking, or accounts.
+- **No automated tests**: parser and prompt behavior validated manually.
+- **Text fallback skips TTS**: typed messages display tutor text only.
+- **Unused hook**: `useTTS.ts` exists but orchestration is inline in `useConversation.ts`.
 
 ---
 
-## 6. Frontend Design Specification
+## 10. Product Roadmap
 
-### Design Direction
+Post-MVP product direction (aligned with `[README.md](README.md)`):
 
-**Aesthetic:** Clean, warm, and inviting — like a language café. NOT clinical or app-store generic. Think "Duolingo meets a well-designed indie app." Earthy tones, rounded shapes, a touch of Mexican/Latin American warmth in the color palette.
 
-**Avoid:** Purple gradients, Inter font, generic card layouts, dark mode by default, excessive shadows.
+| Priority  | Feature                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| Near-term | Progress tracking across sessions                                                               |
+| Near-term | Difficulty recommendations based on performance                                                 |
+| Mid-term  | Custom user-defined scenarios                                                                   |
+| Mid-term  | Session history / review                                                                        |
+| Long-term | Additional languages and dialect modes                                                          |
+| Long-term | OpenAI Realtime API (lower-latency speech-to-speech)                                            |
+| Long-term | Mobile app (PWA or native)                                                                      |
+| Optional  | VAD as alternative to push-to-talk, only if reliability is proven; MVP intentionally avoids it |
 
-### Design Tokens
 
-```css
-:root {
-  /* Colors — warm, earthy, Latin-inspired palette */
-  --color-bg: #FDF6EC;              /* Warm cream background */
-  --color-surface: #FFFFFF;          /* Card/panel background */
-  --color-primary: #D4572A;          /* Terracotta — main accent */
-  --color-primary-light: #E8845F;    /* Lighter terracotta */
-  --color-secondary: #2D6A4F;        /* Deep green */
-  --color-secondary-light: #52B788;  /* Light green for success */
-  --color-text: #2C1810;             /* Dark warm brown */
-  --color-text-muted: #8B7355;       /* Muted brown */
-  --color-text-english: #5C6B73;     /* Cool gray for English translations */
-  --color-error-bg: #FFF0E6;         /* Light orange for correction cards */
-  --color-mic-active: #D4572A;       /* Terracotta pulse when recording */
-  --color-mic-disabled: #C4B5A0;     /* Muted when unavailable */
+**Explicitly out of scope for MVP:** backend proxy, database, auth, gamification, multi-language support.
 
-  /* Typography */
-  --font-display: 'DM Serif Display', Georgia, serif;   /* Headings, scenario titles */
-  --font-body: 'DM Sans', -apple-system, sans-serif;    /* Body text, UI elements */
-  --font-mono: 'JetBrains Mono', monospace;              /* Corrections, grammar highlights */
-
-  /* Spacing */
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 22px;
-  --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-card: 0 2px 8px rgba(44, 24, 16, 0.06);
-  --shadow-elevated: 0 8px 24px rgba(44, 24, 16, 0.1);
-}
-```
-
-### Key UI Components
-
-**Scenario Card**
-- Rounded scenario tile with icon, difficulty, and expected exchange count
-- Editorial heading style, not generic product-card styling
-
-**Scene Intro Card**
-- Full-screen intro before conversation starts
-- Shows scene setup, role context, tutor character, and practice focus
-- Single clear CTA to begin
-
-**Exchange Card**
-- One card per conversational exchange
-- Supports optional narrator line above the card
-- Displays tutor Spanish line, optional translation, user response, and inline correction state
-- Completion exchanges can also display session-summary content
-
-**Word Tooltip**
-- Triggered by tapping Spanish text inside the exchange card
-- Shows a brief contextual English gloss
-
-**Mic Button**
-- Large circular bottom-bar control with stateful recording/speaking visuals
-- Typing remains as a supported fallback, not just a debug input
-
-**Session Summary Overlay**
-- Lightweight completion overlay with recap and next-scenario navigation
-
----
-
-## 7. File Structure
-
-```
-speakfluid/
-├── public/
-│   └── favicon.ico
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx                  # Root layout with fonts, metadata
-│   │   ├── page.tsx                    # Landing / API key setup
-│   │   ├── scenarios/
-│   │   │   └── page.tsx                # Scenario selection grid
-│   │   └── session/
-│   │       └── [scenarioId]/
-│   │           └── page.tsx            # Active conversation session
-│   ├── components/
-│   │   ├── ApiKeyForm.tsx              # API key input + validation
-│   │   ├── ScenarioCard.tsx            # Individual scenario card
-│   │   ├── ScenarioGrid.tsx            # Grid of scenario cards
-│   │   ├── SceneIntro.tsx              # Pre-conversation roleplay setup
-│   │   ├── ImmersiveDialogueView.tsx   # Exchange-based session renderer
-│   │   ├── ExchangeCard.tsx            # Individual exchange card
-│   │   ├── TappableSpanishText.tsx     # Tap-to-define Spanish text
-│   │   ├── WordTooltip.tsx             # Contextual word definition tooltip
-│   │   ├── MicButton.tsx               # Push-to-talk button with states
-│   │   ├── StatusIndicator.tsx         # "Listening..." / "Thinking..." text
-│   │   ├── SessionSummary.tsx          # End-of-session recap
-│   │   └── ScenarioHeader.tsx          # Context bar during session
-│   ├── hooks/
-│   │   ├── useAudioRecorder.ts         # MediaRecorder wrapper
-│   │   ├── useAudioPlayer.ts           # Audio playback with state tracking
-│   │   ├── useConversation.ts          # Core conversation state machine
-│   │   └── useTTS.ts                   # TTS API call + audio creation
-│   ├── lib/
-│   │   ├── openai.ts                   # OpenAI client factory (uses stored key)
-│   │   ├── elevenlabs.ts               # ElevenLabs client factory (uses stored key)
-│   │   ├── stt.ts                      # STT API call (gpt-4o-transcribe)
-│   │   ├── tts.ts                      # TTS API call (ElevenLabs Flash v2.5)
-│   │   ├── tutor.ts                    # LLM call with system prompt + conversation history
-│   │   ├── scenarios.ts                # Scenario data (the 8 scenarios)
-│   │   ├── exchanges.ts                # Group flat messages into exchanges
-│   │   └── wordLookup.ts               # Contextual word definitions
-│   ├── types/
-│   │   └── index.ts                    # TypeScript types (Scenario, Message, AudioState, etc.)
-│   └── styles/
-│       └── globals.css                 # Tailwind config + CSS custom properties
-├── .env.local                          # (empty — API keys stored in localStorage)
-├── AGENTS.md                           # Codex instructions (imports shared agent docs)
-├── CLAUDE.md                           # Claude Code instructions (imports shared agent docs)
-├── docs/
-│   └── agents/
-│       ├── COMMON.md                   # Shared agent constraints and contracts
-│       ├── CODEX.md                    # Codex-specific overlay
-│       ├── CLAUDE_CODE.md              # Claude Code-specific overlay
-│       └── SOURCES.md                  # Official reference links for agent docs
-├── next.config.js
-├── tailwind.config.ts
-├── tsconfig.json
-├── package.json
-└── README.md
-```
-
----
-
-## 8. Implementation Phases
-
-Build in this exact order. Each phase must be fully working before moving to the next.
-
-### Phase 1: Static Shell (30 min)
-
-**Goal:** App skeleton renders, you can navigate between pages.
-
-- Set up Next.js project with TypeScript + Tailwind
-- Install Google Fonts (DM Serif Display, DM Sans)
-- Create the 3 pages: landing, scenario select, session
-- Implement design tokens in globals.css
-- Create ScenarioCard component with hardcoded data
-- Render the scenario grid with all 8 scenarios
-- Navigation: landing → scenario select → session/[id]
-- No API calls yet. Placeholder content everywhere.
-
-**Verify:** You can click through all 3 pages with correct routing.
-
-### Phase 2: API Key Management (20 min)
-
-**Goal:** User can enter, validate, and persist both API keys.
-
-- ApiKeyForm component on landing page with two fields:
-  - OpenAI API key (validated by calling list models endpoint)
-  - ElevenLabs API key (validated by calling the /v1/user endpoint)
-- On submit: validate both keys in parallel
-- If both valid: store in localStorage (`speakfluid-openai-key`, `speakfluid-elevenlabs-key`), redirect to scenario select
-- If either invalid: show specific error message indicating which key failed
-- On scenario select page: check for both keys, redirect to landing if either missing
-- Add "Change API keys" small link in scenario select header
-
-**Verify:** Enter valid keys → lands on scenario page. Refresh → still there. Invalid key → specific error shown.
-
-### Phase 3: Conversation Engine & Immersive Session UX (1 hour)
-
-**Goal:** Tutor behavior, parsing, and session rendering feel right before voice is layered on.
-
-- Implement `tutor.ts`: constructs the system prompt + injects scenario context + sends conversation history to GPT-4o-mini
-- Implement `useConversation` hook:
-  - Holds conversation state: messages array, current scenario, exchange count, audio state
-  - `sendMessage(text: string)` → calls LLM → parses response → updates messages
-  - Detects `[SCENARIO_COMPLETE]` → triggers summary display
-- Implement the session UI:
-  - `SceneIntro`
-  - `ImmersiveDialogueView`
-  - `ExchangeCard`
-- Parse tutor responses into:
-  - Spanish line
-  - English translation
-  - correction state
-  - completion summary
-  - optional `[NARRATOR]` line
-- Keep typed input available as an intentional fallback
-- Implement `SessionSummary` component
-- Implement "Next Scenario" navigation
-
-**Verify:** Select a scenario → view intro card → begin conversation → tutor responds with short in-character lines → corrections group correctly into exchanges → optional narrator lines render visually → scenario completes → summary shown → can navigate to next.
-
-**This phase is the most important.** The tutor prompt must produce short, guided, in-character responses. If it doesn't, tune the prompt before moving on. Do not proceed to audio until text conversations feel right.
-
-### Phase 4: Voice Pipeline (1 hour)
-
-**Goal:** Push-to-talk recording → gpt-4o-transcribe → tutor → ElevenLabs playback.
-
-- Implement `useAudioRecorder`:
-  - Uses MediaRecorder API
-  - Starts on mousedown/touchstart of mic button
-  - Stops on mouseup/touchend
-  - Returns audio Blob (webm format)
-- Implement `stt.ts`:
-  - Takes audio Blob → converts to File → sends to OpenAI gpt-4o-transcribe
-  - Returns transcribed text
-  - Set `language: "es"` to hint Spanish
-- Implement `tts.ts`:
-  - Takes text string → sends to ElevenLabs Text-to-Speech API
-  - Model: `eleven_flash_v2_5`
-  - Voice: choose a Latin American Spanish voice from ElevenLabs voice library (e.g., "Charlotte" or browse for a native Spanish voice)
-  - Returns audio stream → creates Blob URL for playback
-- Implement `useAudioPlayer`:
-  - Plays audio from Blob URL
-  - Fires callback when playback completes
-  - Handles cleanup (revoke Blob URLs)
-- Implement `MicButton` with full state machine (IDLE → RECORDING → TRANSCRIBING → THINKING → SPEAKING → IDLE)
-- Wire everything together in the session page
-- Keep typing as a supported fallback
-- If a tutor response contains `[NARRATOR]`, do not send the narrator line to TTS
-
-**Verify:** Hold mic → speak Spanish → release → see transcription grouped into the active exchange → tutor text appears → hear tutor dialogue speak without narrator text → mic becomes available again. No double audio, no stuttering, no stuck states.
-
-### Phase 5: Polish & Edge Cases (30 min)
-
-**Goal:** Handle everything that can go wrong gracefully.
-
-- Error toasts for: API key expired, network failure, STT returned empty, TTS failed
-- Loading states: skeleton shimmer on scenario cards, pulsing dots during thinking
-- Mobile responsive: mic button thumb-friendly on mobile, chat scrolls correctly
-- Keyboard accessibility: spacebar to hold mic (in addition to click)
-- Auto-scroll chat to bottom on new messages
-- Scenario header shows exchange count progress (e.g., "4 of ~10")
-- First-visit onboarding: brief 2-line explanation of push-to-talk on first session
-- Page title updates with current scenario name
-- Word lookup feels fast and non-disruptive in the dialogue view
-
-**Verify:** Test on mobile browser. Test with airplane mode toggled. Test rapid mic presses. Test very long user utterances. Test user saying nothing (empty recording).
-
----
-
-## 9. LLM Message Construction
-
-Here's exactly how to build the messages array for each LLM call:
-
-```typescript
-function buildMessages(scenario: Scenario, history: Message[]): ChatMessage[] {
-  return [
-    {
-      role: "system",
-      content: TUTOR_SYSTEM_PROMPT  // The full prompt from Section 5
-    },
-    {
-      role: "user",
-      content: `
-<scenario_context>
-You are playing: ${scenario.tutorRole}
-The user is playing: ${scenario.userRole}
-Situation: ${scenario.situation}
-Target exchanges: ${scenario.targetExchanges}
-Key vocabulary to elicit: ${scenario.keyVocabulary.join(", ")}
-Grammar focus: ${scenario.grammarFocus}
-Completion trigger: ${scenario.completionTrigger}
-Current exchange number: ${history.filter(m => m.role === 'user').length + 1}
-</scenario_context>
-
-${history.length === 0
-  ? "Begin the scenario now with your opening line."
-  : `The user just said: "${history[history.length - 1].content}"`
-}
-`
-    },
-    // Include conversation history for context
-    ...history.map(msg => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content
-    }))
-  ];
-}
-```
-
-**LLM Call Parameters:**
-
-```typescript
-const response = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: buildMessages(scenario, conversationHistory),
-  temperature: 0.7,        // Some creativity but consistent behavior
-  max_tokens: 200,         // Hard cap to enforce brevity
-  presence_penalty: 0.3,   // Discourage repetition
-  frequency_penalty: 0.2,  // Further discourage repetition
-});
-```
-
-### Response Parsing
-
-The tutor's response needs to be parsed into structured parts:
-
-```typescript
-interface ParsedTutorResponse {
-  type: 'normal' | 'correction' | 'completion';
-  spanishText?: string;          // The Spanish dialogue line
-  englishText?: string;          // The English translation
-  correctionExplanation?: string; // English error correction (if correction type)
-  retryPrompt?: string;          // "Try again" prompt (if correction type)
-  summaryText?: string;          // Session summary (if completion type)
-  narratorText?: string;         // Optional visual-only scene line
-}
-
-function parseTutorResponse(raw: string): ParsedTutorResponse {
-  let narratorText: string | undefined;
-  let remaining = raw;
-
-  const narratorMatch = raw.match(/^\[NARRATOR\]\s*(.+?)$/m);
-  if (narratorMatch) {
-    narratorText = narratorMatch[1].trim();
-    remaining = raw.replace(narratorMatch[0], '').trim();
-  }
-
-  // Check for scenario completion
-  if (remaining.includes('[SCENARIO_COMPLETE]')) {
-    const [dialogue, rest] = remaining.split('[SCENARIO_COMPLETE]');
-    return {
-      type: 'completion',
-      ...parseDialogue(dialogue.trim()),
-      summaryText: rest.trim().replace('Session summary: ', ''),
-      narratorText,
-    };
-  }
-
-  // Corrections are English-only and never include narrator text.
-  const correctionStarters = ['almost', 'close', 'good try', 'not quite', 'small fix'];
-  const lowerRaw = remaining.toLowerCase();
-  if (correctionStarters.some(s => lowerRaw.startsWith(s))) {
-    return {
-      type: 'correction',
-      correctionExplanation: remaining.split('\n')[0],
-      retryPrompt: remaining.split('\n').slice(1).join('\n').trim() || 'Can you try that again?'
-    };
-  }
-
-  return {
-    type: 'normal',
-    ...parseDialogue(remaining),
-    narratorText,
-  };
-}
-
-function parseDialogue(text: string): { spanishText: string; englishText: string } {
-  // Expected format:
-  // "Spanish sentence here."
-  // "(English translation here.)"
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  const spanishText = lines[0]?.replace(/^[""]|[""]$/g, '').trim() || '';
-  const englishLine = lines.find(l => l.trim().startsWith('('));
-  const englishText = englishLine?.replace(/^\(|\)$/g, '').trim() || '';
-
-  return { spanishText, englishText };
-}
-```
-
----
-
-## 10. Agent Operating Docs (Source of Truth)
-
-Agent instructions are maintained outside this spec to avoid stale duplicates.
-
-- `AGENTS.md`: entrypoint for Codex.
-- `CLAUDE.md`: entrypoint for Claude Code.
-- `docs/agents/COMMON.md`: shared constraints and contracts.
-- `docs/agents/CODEX.md` and `docs/agents/CLAUDE_CODE.md`: model-specific overlays.
-
-When architecture or workflow changes, update these files in the same commit as spec changes.
-
-This spec remains the product and implementation reference (especially Sections 3, 5, 8, and 9), while agent files define execution behavior and workflow expectations.
-
----
-
-## 11. Current Known Issues
-
-- No critical known issues are currently tracked in the spec.
-- Re-validate correction-turn TTS and late-conversation exchange rendering during the next manual QA pass.
-
----
-
-## 12. Future Enhancements (Post-MVP)
-
-These are explicitly OUT OF SCOPE for the MVP but documented for future reference:
-
-- **Progress tracking:** Track completed scenarios, error patterns, vocabulary mastery
-- **Difficulty suggestions:** Recommend next scenario based on performance
-- **Multiple languages:** Architecture should support swapping Spanish for other languages
-- **Multiple dialects:** Castilian, Colombian, Argentine modes with dialect-specific vocab
-- **VAD (Voice Activity Detection):** Replace push-to-talk with automatic silence detection
-- **Streaming TTS:** Stream audio as LLM generates response for lower latency
-- **Custom scenarios:** Let users describe a situation and generate a scenario on the fly
-- **Vocabulary review:** End-of-week review of words encountered across sessions
-- **OpenAI Realtime API:** Single WebSocket for STT+LLM+TTS with much lower latency
-- **Mobile app:** React Native or PWA version
-- **Conversation history:** Save past sessions for review
-
----
-
-## Appendix A: Environment Setup
-
-```bash
-npx create-next-app@latest speakfluid --typescript --tailwind --app --src-dir
-cd speakfluid
-npm install openai
-npm install elevenlabs                    # ElevenLabs SDK
-npm install @types/dom-mediacapture-record  # TypeScript types for MediaRecorder
-```
-
-## Appendix B: API Call Examples
-
-### STT (OpenAI gpt-4o-transcribe)
-```typescript
-const transcription = await openai.audio.transcriptions.create({
-  model: "gpt-4o-transcribe",
-  file: audioFile,           // File object from Blob
-  language: "es",            // Hint: Spanish
-  response_format: "text",   // Plain text, not JSON
-});
-```
-
-### Chat (Tutor LLM)
-```typescript
-const completion = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: messages,
-  temperature: 0.7,
-  max_tokens: 200,
-  presence_penalty: 0.3,
-  frequency_penalty: 0.2,
-});
-```
-
-### TTS (ElevenLabs Flash v2.5)
-```typescript
-// Using ElevenLabs SDK
-import { ElevenLabsClient } from "elevenlabs";
-
-const elevenlabs = new ElevenLabsClient({ apiKey: storedElevenLabsKey });
-
-const audioStream = await elevenlabs.textToSpeech.convert(
-  VOICE_ID,  // Selected Latin American Spanish voice ID
-  {
-    text: fullResponseText,       // Spanish + English together
-    model_id: "eleven_flash_v2_5",
-    output_format: "mp3_44100_128",
-  }
-);
-
-// Convert stream to Blob for playback
-const chunks: Uint8Array[] = [];
-for await (const chunk of audioStream) {
-  chunks.push(chunk);
-}
-const blob = new Blob(chunks, { type: "audio/mp3" });
-const url = URL.createObjectURL(blob);
-// Play with: new Audio(url).play()
-```
-
-### ElevenLabs API Key Validation
-```typescript
-// Validate ElevenLabs key by fetching user info
-const response = await fetch("https://api.elevenlabs.io/v1/user", {
-  headers: { "xi-api-key": apiKey }
-});
-const isValid = response.ok;
-```
-
-## Appendix C: Message Format Contract
-
-Every message in the conversation history follows this type:
-
-```typescript
-type MessageRole = 'tutor' | 'user';
-type MessageType = 'normal' | 'correction' | 'completion' | 'user-input' | 'user-retry';
-
-interface Message {
-  id: string;                    // Unique ID (crypto.randomUUID())
-  role: MessageRole;
-  type: MessageType;
-  timestamp: number;
-  content: string;               // Raw text content
-  spanishText?: string;          // Parsed Spanish (tutor messages)
-  englishText?: string;          // Parsed English translation (tutor messages)
-  correctionExplanation?: string; // Error correction text (correction messages)
-  summaryText?: string;          // Session summary (completion messages)
-}
-```
+Engineering experiments (eval pipelines, model upgrades, structured outputs, observability) will be tracked in separate planning docs.
