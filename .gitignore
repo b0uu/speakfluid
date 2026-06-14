@@ -19,3 +19,9 @@ pnpm-debug.log*
 # system files
 .DS_Store
 Thumbs.db
+
+# personal metrics, scorecards, drafts (local only — never commit)
+notes/
+
+# eval script output (plan 006)
+eval-results/

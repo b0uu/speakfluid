@@ -48,27 +48,31 @@ These lessons that I have learned, and more, have been implemented into the proj
 
 ### MVP Scenarios
 
-| Scenario | Difficulty | What You Practice |
-|----------|-----------|-------------------|
-| Meeting Someone New | Beginner | Present tense, introductions |
-| Ordering at a Restaurant | Beginner | Polite requests, food vocabulary |
-| Your Daily Routine | Beginner | Reflexive verbs, time expressions |
-| What Did You Do Last Weekend? | Intermediate | Preterite tense, narration |
-| Finding Your Way | Intermediate | Imperative commands, directions |
-| Shopping at a Market | Intermediate | Numbers, prices, negotiation |
-| Making Plans With a Friend | Intermediate | Conditional, preferences |
-| Talking About Your Family | Advanced | Descriptions, ser vs estar |
+
+| Scenario                      | Difficulty   | What You Practice                 |
+| ----------------------------- | ------------ | --------------------------------- |
+| Meeting Someone New           | Beginner     | Present tense, introductions      |
+| Ordering at a Restaurant      | Beginner     | Polite requests, food vocabulary  |
+| Your Daily Routine            | Beginner     | Reflexive verbs, time expressions |
+| What Did You Do Last Weekend? | Intermediate | Preterite tense, narration        |
+| Finding Your Way              | Intermediate | Imperative commands, directions   |
+| Shopping at a Market          | Intermediate | Numbers, prices, negotiation      |
+| Making Plans With a Friend    | Intermediate | Conditional, preferences          |
+| Talking About Your Family     | Advanced     | Descriptions, ser vs estar        |
+
 
 ## Tech Stack
 
-| Component | Technology | Why |
-|-----------|-----------|-----|
-| Framework | Next.js 15 (App Router) | React-based, Vercel deployment, TypeScript |
-| STT | OpenAI `gpt-4o-transcribe` | Lower error rate than Whisper, strong Spanish support |
-| Tutor Brain | OpenAI `gpt-4o-mini` | Fast, cheap, good instruction following for short structured outputs |
-| TTS | ElevenLabs Flash v2.5 | Best-in-class Spanish pronunciation, sub-100ms latency, natural bilingual prosody |
-| Styling | Tailwind CSS | Custom design tokens, warm Latin-inspired palette: no AI-slop defaults |
-| Deploy | Vercel | Auto-deploy from GitHub, free tier |
+
+| Component   | Technology                 | Why                                                                               |
+| ----------- | -------------------------- | --------------------------------------------------------------------------------- |
+| Framework   | Next.js 15 (App Router)    | React-based, Vercel deployment, TypeScript                                        |
+| STT         | OpenAI `gpt-4o-transcribe` | Lower error rate than Whisper, strong Spanish support                             |
+| Tutor Brain | OpenAI `gpt-4o-mini`       | Fast, cheap, good instruction following for short structured outputs              |
+| TTS         | ElevenLabs Flash v2.5      | Best-in-class Spanish pronunciation, sub-100ms latency, natural bilingual prosody |
+| Styling     | Tailwind CSS               | Custom design tokens, warm Latin-inspired palette: no AI-slop defaults            |
+| Deploy      | Vercel                     | Auto-deploy from GitHub, free tier                                                |
+
 
 # Development Approach
 
@@ -84,6 +88,7 @@ This time I’m making a more conscious effort to build on a public repository w
 ## AI Agent Usage
 
 For best coding-agent performance:
+
 - Codex reads `AGENTS.md` first.
 - Claude Code reads `CLAUDE.md` first.
 - Both should align to `docs/agents/COMMON.md` and the architecture in `SPEAKFLUID_SPEC.md`.
@@ -100,19 +105,15 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and enter your API keys:
-- **OpenAI API key** (https://platform.openai.com/api-keys)
-- **ElevenLabs API key** (https://elevenlabs.io/app/settings/api-keys)
+
+- **OpenAI API key** ([https://platform.openai.com/api-keys](https://platform.openai.com/api-keys))
+- **ElevenLabs API key** ([https://elevenlabs.io/app/settings/api-keys](https://elevenlabs.io/app/settings/api-keys))
 
 API keys are stored in browser localStorage and sent directly to OpenAI and ElevenLabs from the client.
 
 ## Roadmap
 
-- Progress tracking across sessions
-- Difficulty recommendations based on performance
-- Custom user-defined scenarios
-- Additional languages
-- OpenAI Realtime API for lower latency
-- Mobile app (maybe)
+- See `v2_todo.md`
 
 ## License
 
