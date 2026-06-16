@@ -15,7 +15,7 @@ finished summaries to `docs/planning/` when ready (e.g. `improvement-report.md`)
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | Verification baseline (Vitest + characterization tests + CI) | P1 | M | — | TODO |
+| 001 | Verification baseline (Vitest + characterization tests + CI) | P1 | M | — | DONE |
 | 002 | Next.js security bump + drop unused ElevenLabs SDK | P1 | S | — | TODO |
 | 003 | Stop TTS playback on session unmount | P1 | S | — (001 recommended) | TODO |
 | 004 | TTS contract fixes (speak completion, never speak English) | P1 | S | 001; after 003 | TODO |
