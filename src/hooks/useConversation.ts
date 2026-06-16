@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Scenario, Message } from "@/types";
 import { AudioState } from "@/types";
 import { sendToTutor, parseTutorResponse, buildTutorSpeechText } from "@/lib/tutor";
@@ -21,8 +21,23 @@ export function useConversation(scenario: Scenario) {
 
   // Audio element ref for TTS playback
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
 
   const exchangeCount = messages.filter((m) => m.role === "user").length;
+
+  // Stop any in-flight TTS playback if the session unmounts mid-speech.
+  useEffect(() => {
+    return () => {
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current = null;
+      }
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   /** Add a tutor message from parsed response, return the full text for TTS. */
   function addTutorMessage(rawResponse: string) {
@@ -58,22 +73,26 @@ export function useConversation(scenario: Scenario) {
   /** Play TTS for the given text. Resolves when done. */
   async function playTTS(text: string, apiKey: string): Promise<void> {
     const blobUrl = await synthesizeSpeech(text, apiKey);
+    blobUrlRef.current = blobUrl;
     return new Promise((resolve, reject) => {
       const audio = new Audio(blobUrl);
       audioElRef.current = audio;
 
       audio.onended = () => {
         URL.revokeObjectURL(blobUrl);
+        blobUrlRef.current = null;
         audioElRef.current = null;
         resolve();
       };
       audio.onerror = () => {
         URL.revokeObjectURL(blobUrl);
+        blobUrlRef.current = null;
         audioElRef.current = null;
         reject(new Error("Audio playback failed."));
       };
       audio.play().catch((err) => {
         URL.revokeObjectURL(blobUrl);
+        blobUrlRef.current = null;
         audioElRef.current = null;
         reject(err);
       });
