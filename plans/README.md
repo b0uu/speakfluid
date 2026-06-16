@@ -18,7 +18,7 @@ finished summaries to `docs/planning/` when ready (e.g. `improvement-report.md`)
 | 001 | Verification baseline (Vitest + characterization tests + CI) | P1 | M | — | DONE |
 | 002 | Next.js security bump + drop unused ElevenLabs SDK | P1 | S | — | DONE |
 | 003 | Stop TTS playback on session unmount | P1 | S | — (001 recommended) | DONE |
-| 004 | TTS contract fixes (speak completion, never speak English) | P1 | S | 001; after 003 | TODO |
+| 004 | TTS contract fixes (speak completion, never speak English) | P1 | S | 001; after 003 | DONE |
 | 005 | Structured JSON tutor output validated by Zod (v2 #2) | P2 | L | 001, 004 | TODO |
 | 006 | Eval pipeline spike (v2 #3) | P2 | M | 001, 005 | TODO — **human-led**: the maintainer is building this one personally (see `LEARNING.md`); agents may assist with hints/reviews on request but must not implement it |
 

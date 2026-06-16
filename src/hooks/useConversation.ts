@@ -167,10 +167,10 @@ export function useConversation(scenario: Scenario) {
         const parsed = addTutorMessage(rawResponse);
 
         // Play TTS if requested (strip narrator text — it's visual only)
-        if (withTTS && parsed.type !== "completion") {
+        const ttsText = buildTutorSpeechText(parsed);
+        if (withTTS && ttsText) {
           setAudioState(AudioState.SPEAKING);
           try {
-            const ttsText = buildTutorSpeechText(rawResponse, parsed);
             await playTTS(ttsText, keys.elevenlabs);
           } catch {
             // TTS failure is non-critical — text is already displayed
@@ -237,10 +237,10 @@ export function useConversation(scenario: Scenario) {
         const parsed = addTutorMessage(rawResponse);
 
         // Play TTS (strip narrator text — it's visual only)
-        if (parsed.type !== "completion") {
+        const ttsText = buildTutorSpeechText(parsed);
+        if (ttsText) {
           setAudioState(AudioState.SPEAKING);
           try {
-            const ttsText = buildTutorSpeechText(rawResponse, parsed);
             await playTTS(ttsText, keys.elevenlabs);
           } catch {
             // TTS failure is non-critical

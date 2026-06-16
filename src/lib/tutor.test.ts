@@ -139,27 +139,32 @@ describe("parseTutorResponse", () => {
 });
 
 describe("buildTutorSpeechText", () => {
+  function expectNoVisualOnlyText(text: string) {
+    expect(text).not.toContain("[SCENARIO_COMPLETE]");
+    expect(text).not.toContain("[NARRATOR]");
+    expect(text).not.toMatch(/\(.+\)/);
+  }
+
   it("returns the correction target for corrections with a target", () => {
     const raw =
       'You meant to say "Me ducho y despues tomo un cafe."\nTry again: "Me ducho y despues tomo un cafe."';
     const parsed = parseTutorResponse(raw);
 
-    expect(buildTutorSpeechText(raw, parsed)).toBe("Me ducho y despues tomo un cafe.");
+    expect(buildTutorSpeechText(parsed)).toBe("Me ducho y despues tomo un cafe.");
   });
 
   it("returns Spanish text for normal turns", () => {
     const raw = '"\u00BFYa sabe que quiere tomar?"\n(Do you know what you want to drink?)';
     const parsed = parseTutorResponse(raw);
 
-    expect(buildTutorSpeechText(raw, parsed)).toBe("\u00BFYa sabe que quiere tomar?");
+    expect(buildTutorSpeechText(parsed)).toBe("\u00BFYa sabe que quiere tomar?");
   });
 
-  it("returns the raw correction text when no correction target exists", () => {
+  it("returns empty speech text when a correction has no target", () => {
     const raw = "Not quite - you need the reflexive form.\nTry again: say it one more time.";
     const parsed = parseTutorResponse(raw);
 
-    // KNOWN QUIRK: speaks English; fixed by plan 004 - update this assertion then.
-    expect(buildTutorSpeechText(raw, parsed)).toBe(raw);
+    expect(buildTutorSpeechText(parsed)).toBe("");
   });
 
   it("strips a narrator-only response down to empty speech text", () => {
@@ -167,6 +172,52 @@ describe("buildTutorSpeechText", () => {
     const parsed = parseTutorResponse(raw);
 
     expect(parsed.spanishText).toBe("");
-    expect(buildTutorSpeechText(raw, parsed)).toBe("");
+    expect(buildTutorSpeechText(parsed)).toBe("");
+  });
+
+  it("returns Spanish text for completion turns with dialogue", () => {
+    const parsed = parseTutorResponse(
+      '"Perfecto, su mesa esta lista."\n(Perfect, your table is ready.)\n[SCENARIO_COMPLETE]\nSession summary: You practiced ordering food.'
+    );
+
+    expect(buildTutorSpeechText(parsed)).toBe("Perfecto, su mesa esta lista.");
+  });
+
+  it("returns empty speech text for completion turns without dialogue", () => {
+    const parsed = parseTutorResponse(
+      "[SCENARIO_COMPLETE]\nSession summary: You practiced introductions."
+    );
+
+    expect(buildTutorSpeechText(parsed)).toBe("");
+  });
+
+  it("excludes visual-only text from normal speech text", () => {
+    const parsed = parseTutorResponse(
+      '[NARRATOR] Carlos leans forward.\n"\u00BFDe donde eres?"\n(Where are you from?)'
+    );
+    const speechText = buildTutorSpeechText(parsed);
+
+    expect(speechText).toBe("\u00BFDe donde eres?");
+    expectNoVisualOnlyText(speechText);
+  });
+
+  it("excludes markers and translations from completion speech text", () => {
+    const parsed = parseTutorResponse(
+      '"Muy bien, terminamos por hoy."\n(Very good, we are done for today.)\n[SCENARIO_COMPLETE]\nSession summary: You practiced introductions.'
+    );
+    const speechText = buildTutorSpeechText(parsed);
+
+    expect(speechText).toBe("Muy bien, terminamos por hoy.");
+    expectNoVisualOnlyText(speechText);
+  });
+
+  it("excludes English correction text when no Spanish target exists", () => {
+    const parsed = parseTutorResponse(
+      "Not quite - you need the reflexive form.\nTry again: say it one more time."
+    );
+    const speechText = buildTutorSpeechText(parsed);
+
+    expect(speechText).toBe("");
+    expectNoVisualOnlyText(speechText);
   });
 });

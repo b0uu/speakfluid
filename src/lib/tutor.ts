@@ -390,14 +390,18 @@ export function parseTutorResponse(raw: string): ParsedTutorResponse {
   };
 }
 
-export function buildTutorSpeechText(raw: string, parsed: ParsedTutorResponse): string {
+export function buildTutorSpeechText(parsed: ParsedTutorResponse): string {
   if (parsed.type === "correction" && parsed.correctionTarget) {
     return parsed.correctionTarget;
+  }
+
+  if (parsed.type === "correction") {
+    return "";
   }
 
   if (parsed.spanishText?.trim()) {
     return parsed.spanishText.trim();
   }
 
-  return stripNarratorLine(raw);
+  return "";
 }
